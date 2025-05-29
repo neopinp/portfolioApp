@@ -1,6 +1,13 @@
 # portfolioApp
 A financial app aimed at helping young investors by simulating investing, growth analysis, and keeping up with related news.
 
+MVP FEATURES: 
+Authentication
+Portfolio Summary
+Projections
+Risk Aversion Analysis
+News Feed 
+
 ## Initializing / Installing Dependencies 
 npm init -y 
 npm install epxress pg bcrypt jsonwebtoken dotenv cors
