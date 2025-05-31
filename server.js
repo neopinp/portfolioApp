@@ -1,14 +1,20 @@
-/* MAIN FILE - ENTRY POINT */
+/* 
+MAIN FILE - ENTRY POINT - ROUTER REGISTRATION  
+Imports the route definitions and links them into the app 
+*/
 
 require("dotenv").config(); // import
 const express = require("express"); // load routes
 const cors = require("cors"); // load middleware
 const pool = require("./backend/db"); // db connection
+const authRoutes = require("./backend/routes/authRoutes");
 
 const app = express();
-app.use(cors());
-app.use(express.json());
+app.use(cors()); // allow frontend access
+app.use(express.json()); // parse incoming JSON
+app.use("/api/auth", authRoutes); // mount all related auth related routes under /api/auth 
 
+// testing db connection
 app.get("/api/test-db", async (req, res) => {
   try {
     const result = await pool.query("SELECT NOW()");
@@ -18,5 +24,7 @@ app.get("/api/test-db", async (req, res) => {
   }
 });
 
+// tell Express to listen or fallback to 5000
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+
