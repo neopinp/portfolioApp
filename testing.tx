@@ -1,0 +1,9 @@
+Testing 
+POST
+http://localhost:5000/api/auth/login
+http://localhost:5000/api/auth/register
+
+{
+  "email": "test@example.com",
+  "password": "password123"
+}
