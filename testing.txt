@@ -13,3 +13,5 @@ PROTECTED ROUTES
 Set the token in authorization (Postman is stateless)
 GET 
 http://localhost:5000/api/protected
+
+ADD CHECKING FOR EMAIL CONDITIONS (NEEDS TO FOLLOW A CERTAIN FORMAT '@' '.com')

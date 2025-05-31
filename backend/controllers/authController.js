@@ -14,12 +14,17 @@ const registerUser = async (req, res) => {
       "INSERT INTO users (email, password) values ($1, $2) RETURNING id, email",
       [email, hashed]
     );
-
     res.status(201).json({ message: "User registered", user: result.rows[0] });
-  } catch {
-    res.status(400).json({ error: err.messaage });
+  } catch (err) {
+    if (err.code === "23505") {
+      // not unique email
+      res.status(400).json({ error: "Email is already in use" });
+    }
+    res.status(500).json({ error: "Server error" });
   }
 };
+
+/* ADD CHECKING FOR EMAIL CONDITIONS (NEEDS TO FOLLOW A CERTAIN FORMAT '@' '.com') */
 
 const loginUser = async (req, res) => {
   const { email, password } = req.body;
@@ -29,9 +34,10 @@ const loginUser = async (req, res) => {
 
   try {
     // check user
-    const result = await pool.query("SELECT * FROM users WHERE email = $1", [
-      email,
-    ]);
+    const result = await pool.query(
+      "SELECT * FROM users WHERE email = $1",
+      [email]
+    );
 
     if (result.rows.length === 0) {
       return res.status(400).json({ error: "Invalid username" });
@@ -46,7 +52,7 @@ const loginUser = async (req, res) => {
       return res.status(400).json({ error: "Invalid password" });
     }
 
-    // JWT_SECRET(my special key) used to allow the user to complete an action  
+    // JWT_SECRET(my special key) used to allow the user to complete an action
     const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, {
       expiresIn: "1h",
     });
