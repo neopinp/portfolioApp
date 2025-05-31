@@ -7,3 +7,9 @@ http://localhost:5000/api/auth/register
   "email": "test@example.com",
   "password": "password123"
 }
+
+
+PROTECTED ROUTES 
+Set the token in authorization (Postman is stateless)
+GET 
+http://localhost:5000/api/protected

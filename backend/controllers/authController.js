@@ -46,6 +46,7 @@ const loginUser = async (req, res) => {
       return res.status(400).json({ error: "Invalid password" });
     }
 
+    // JWT_SECRET(my special key) used to allow the user to complete an action  
     const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, {
       expiresIn: "1h",
     });
