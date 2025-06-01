@@ -3,9 +3,17 @@ POST
 http://localhost:5000/api/auth/login
 http://localhost:5000/api/auth/register
 
+Register
 {
   "email": "test@example.com",
   "password": "password123"
+  "username": "tester"
+}
+
+Login
+{
+    "emailorUsername": "tester",
+    "password": "testpass123"
 }
 
 
@@ -15,3 +23,6 @@ GET
 http://localhost:5000/api/protected
 
 ADD CHECKING FOR EMAIL CONDITIONS (NEEDS TO FOLLOW A CERTAIN FORMAT '@' '.com')
+ADD CHECKING FOR UNIQUE USERNAME (add messages)
+
+
