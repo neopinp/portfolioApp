@@ -1,10 +1,11 @@
 // CONTROLLERS
 // Runs when a route is hit (front desk vs. person who actually does the job)
-import pool from "../db";
+import { PrismaClient } from "@prisma/client";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcrypt";
-
 import { Request, Response } from "express";
+
+const prisma = new PrismaClient();
 
 const registerUser = async (req: Request, res: Response): Promise<void> => {
   const { email, password, username } = req.body;
@@ -15,65 +16,76 @@ const registerUser = async (req: Request, res: Response): Promise<void> => {
       res.status(400).json({ error: "Invalid email format" });
       return;
     }
-    // force user to pick a username so JWT header contains id,email,username
-    if (!username) {
+
+    // Force user to pick a username so JWT header contains id, email, username
+    if (!username || username.trim() === "") {
       res.status(400).json({ error: "Must choose a username" });
+      return;
     }
 
     const hashed = await bcrypt.hash(password, 10);
-    const result = await pool.query(
-      "INSERT INTO users (email, username, password) VALUES ($1, $2, $3) RETURNING id, email, username",
-      [email, username, hashed]
-    );
 
-    res.status(201).json({ message: "User registered", user: result.rows[0] });
-  } catch (err) {
-    if ((err as any).code === "23505") {
-      // not unique email
-      res.status(400).json({ error: "Email is already in use" });
+    // Create user with Prisma
+    const user = await prisma.users.create({
+      data: {
+        email,
+        username,
+        password: hashed,
+      },
+      select: {
+        id: true,
+        email: true,
+        username: true,
+        // Don't select password for security
+      },
+    });
+
+    res.status(201).json({
+      message: "User registered",
+      user: user,
+    });
+  } catch (err: any) {
+    // Handle Prisma unique constraint violations
+    if (err.code === "P2002") {
+      // P2002 is Prisma's unique constraint violation error
+      const target = err.meta?.target;
+      if (target?.includes("email")) {
+        res.status(400).json({ error: "Email is already in use" });
+        return;
+      }
+      if (target?.includes("username")) {
+        res.status(400).json({ error: "Username is already in use" });
+        return;
+      }
+      res.status(400).json({ error: "Email or username is already in use" });
       return;
     }
 
-    if ((err as any).code === "22") {
-      res.status(400).json({ error: "Username is already in use" });
-      return;
-    }
     if (err instanceof Error) {
       res.status(500).json({ error: "Server error" });
       return;
     }
     res.status(500).json({ error: "Unknown server error" });
-    return;
   }
 };
-
-/* 
-ADD CHECKING FOR EMAIL CONDITIONS (NEEDS TO FOLLOW A CERTAIN FORMAT '@' '.com') 
-USERNAME BASED LOGIN 
-*/
 
 const loginUser = async (req: Request, res: Response): Promise<void> => {
   const { emailorUsername, password } = req.body;
 
-  // check if the user exists in the database, and if so grant access
-  // if user does not exist, produce an error message
-
   try {
-    // check user
-    const result = await pool.query(
-      "SELECT * FROM users WHERE email = $1 OR username = $1",
-      [emailorUsername]
-    );
+    // Find user by email OR username using Prisma
+    const user = await prisma.users.findFirst({
+      where: {
+        OR: [{ email: emailorUsername }, { username: emailorUsername }],
+      },
+    });
 
-    if (result.rows.length === 0) {
-      res.status(400).json({ error: "Invalid username" });
+    if (!user) {
+      res.status(400).json({ error: "Invalid username or email" });
       return;
     }
 
-    // check pswd
-
-    const user = result.rows[0];
-
+    // Check password
     const match = await bcrypt.compare(password, user.password);
 
     if (!match) {
@@ -82,7 +94,6 @@ const loginUser = async (req: Request, res: Response): Promise<void> => {
     }
 
     // JWT_SECRET(my special key) used to allow the user to complete an action
-
     const jwtSecret = process.env.JWT_SECRET;
     if (!jwtSecret) {
       throw new Error("JWT_SECRET is not defined in the environment variables");
@@ -99,7 +110,11 @@ const loginUser = async (req: Request, res: Response): Promise<void> => {
     res.status(200).json({
       message: "Login successful",
       token,
-      user: { id: user.id, email: user.email, username: user.username },
+      user: {
+        id: user.id,
+        email: user.email,
+        username: user.username,
+      },
     });
   } catch (err: unknown) {
     if (err instanceof Error) {

@@ -8,17 +8,23 @@ Projections
 Risk Aversion Analysis
 News Feed 
 
+Extra Features:
+Leaderboard
+Profiles / Friends / Messaging 
+
 ## Initializing / Installing Dependencies 
 npm init -y 
 npm install epxress pg bcrypt jsonwebtoken dotenv cors
 npm install --save-dev nodemon 
+npm install prisma --save-dev
+npm install @prisma/client
+npm prisma init
 
 express - web server and routes (API endpoints)
 pg - PostgreSQL 
 bcrypt - Hashes passwords securely (registration/login)
 jswonwebtoken - creates and verifies JWT for user authentication
 cors - enables Cross-Origin Resource Sharing (Allow API requests to the backend)
-nodemon - restarts server on file changes (for developement)
 
 
 ## Developement

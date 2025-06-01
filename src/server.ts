@@ -2,27 +2,29 @@
 MAIN FILE - ENTRY POINT - ROUTER REGISTRATION  
 Imports the route definitions and links them into the app 
 */
-import express, { Response } from "express";
+import express, { Request, Response } from "express";
 import { AuthenticatedRequest } from "./types/auth";
 import cors from "cors";
 import verifyToken from "./backend/middleware/authMiddleware";
 import authRoutes from "./backend/routes/authRoutes";
-import pool from "./backend/db";
+import { PrismaClient } from "@prisma/client";
 
 require("dotenv").config();
 
 const app = express();
+const prisma = new PrismaClient();
 
 app.use(cors()); // allow frontend access
 app.use(express.json()); // parse incoming JSON
 
 app.use("/api/auth", authRoutes); // mount all related auth related routes under /api/auth
 
-// testing db connection - FIXED: added req parameter
-app.get("/api/test-db", async (res: Response) => {
+// Testing db connection with Prisma
+app.get("/api/test-db", async (req: Request, res: Response) => {
   try {
-    const result = await pool.query("SELECT NOW()");
-    res.json({ success: true, time: result.rows[0].now });
+    // Test Prisma connection by running a simple query
+    await prisma.$queryRaw`SELECT 1`;
+    res.json({ success: true, message: "Database connected successfully" });
   } catch (err: unknown) {
     if (err instanceof Error) {
       res.status(500).json({ success: false, error: err.message });
@@ -32,10 +34,7 @@ app.get("/api/test-db", async (res: Response) => {
   }
 });
 
-// tell Express to listen or fallback to 5000
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
-
+// Protected route
 app.get(
   "/api/protected",
   verifyToken,
@@ -43,3 +42,12 @@ app.get(
     res.json({ message: "Access granted", user: req.user });
   }
 );
+
+// Tell Express to listen or fallback to 5000
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+
+// Graceful shutdown
+process.on("beforeExit", async () => {
+  await prisma.$disconnect();
+});
