@@ -3,11 +3,12 @@ MAIN FILE - ENTRY POINT - ROUTER REGISTRATION
 Imports the route definitions and links them into the app 
 */
 import express, { Request, Response } from "express";
-import { AuthenticatedRequest } from "./types/auth";
+import { AuthenticatedRequest } from "./backend/types/auth";
 import cors from "cors";
-import verifyToken from "./backend/middleware/authMiddleware";
-import authRoutes from "./backend/routes/authRoutes";
+import { verifyToken } from "./backend/middleware/auth.middleware";
 import { PrismaClient } from "@prisma/client";
+import authRoutes from "./backend/routes/authRoutes";
+import portfolioRoutes from "./backend/routes/portfolioRoutes";
 
 require("dotenv").config();
 
@@ -17,7 +18,9 @@ const prisma = new PrismaClient();
 app.use(cors()); // allow frontend access
 app.use(express.json()); // parse incoming JSON
 
-app.use("/api/auth", authRoutes); // mount all related auth related routes under /api/auth
+// Mount routes
+app.use("/api/auth", authRoutes);
+app.use("/api/portfolios", portfolioRoutes);
 
 // Testing db connection with Prisma
 app.get("/api/test-db", async (req: Request, res: Response) => {

@@ -1,15 +1,14 @@
-/* 
-ROUTING LOGIC - what happens when someone hits /register
-Define what endpoint (URL + HTTP) should call those LOGIN & REGISTER functions
-Mini App 
-*/
 import express from "express";
-import { loginUser } from "../controllers/authController";
-import { registerUser } from "../controllers/authController";
+import { loginUser, registerUser, getCurrentUser } from "../controllers/authController";
+import { verifyToken } from "../middleware/auth.middleware";
+
 const router = express.Router();
 
-router.post("/login", loginUser);
+// Public routes
 router.post("/register", registerUser);
+router.post("/login", loginUser);
+
+// Protected route example - /api/auth/me
+router.get("/protected", verifyToken, getCurrentUser);
 
 export default router;
-

@@ -2,9 +2,9 @@
   "compilerOptions": {
     "target": "ES6",
     "module": "commonjs",
-    "rootDir": "src",
+    "rootDir": "srcs",
     "moduleResolution": "node",
-    "typeRoots": ["./src/types", "./node_modules/@types"],
+    "typeRoots": ["srcs/types", "./node_modules/@types"],
     "types": ["node"],
     "outDir": "./dist",
     "esModuleInterop": true,
@@ -14,6 +14,6 @@
     "noImplicitThis": true,
     "skipLibCheck": true
   },
-  "include": ["src/**/*"],
+  "include": ["srcs/**/*"],
   "exclude": ["node_modules"]
 }
