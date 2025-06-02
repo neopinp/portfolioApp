@@ -15,6 +15,7 @@ CREATE TABLE "assets" (
 CREATE TABLE "holdings" (
     "id" SERIAL NOT NULL,
     "portfolio_id" INTEGER NOT NULL,
+    "asset_symbol" VARCHAR(10) NOT NULL,
     "amount" DECIMAL(12,2) NOT NULL,
     "bought_at_price" DECIMAL(12,2),
     "created_at" TIMESTAMP(6) DEFAULT CURRENT_TIMESTAMP,
