@@ -1,6 +1,5 @@
 import { PrismaClient } from "@prisma/client";
 import { AddHoldingDto, CreatePortfolioDto } from "../types/portfolio";
-import { Portfolio } from "../types/portfolio";
 
 export class PortfolioService {
   private prisma: PrismaClient;
@@ -83,7 +82,56 @@ export class PortfolioService {
     return { message: "Holding Removed" };
   }
 
-  async updateHolding(userId: number, portfolioId: number, holdingId: number) {
+  async updateHolding(
+    userId: number,
+    portfolioId: number,
+    holdingId: number,
+    data: Partial<AddHoldingDto>
+  ) {
     // check for the correct portfolio
+    const portfolio = await this.getPortfolio(userId, portfolioId);
+
+    if (!portfolio) {
+      throw new Error("Portfolio not found or does not belong to user");
+    }
+    const holding = await this.prisma.holdings.findFirst({
+      where: {
+        id: holdingId,
+        portfolio_id: portfolioId,
+      },
+    });
+
+    if (!holding) {
+      throw new Error("Holding not found or access denied");
+    }
+
+    return this.prisma.holdings.update({
+      where: {
+        id: holdingId,
+      },
+      data: {
+        amount: data.amount,
+        bought_at_price: data.boughtAtPrice,
+      },
+    });
+  }
+
+  async deletePortfolio(userId: number, portfolioId: number) {
+    const portfolio = this.prisma.portfolios.findFirst({
+      where: {
+        id: portfolioId,
+        userId,
+      },
+    });
+
+    if (!portfolio) {
+      throw new Error("Portfolio not found or access denied");
+    }
+
+    return this.prisma.portfolios.delete({
+      where: {
+        id: portfolioId,
+      },
+    });
   }
 }
