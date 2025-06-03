@@ -1,6 +1,10 @@
 import { Request, Response } from "express";
 import { AuthService } from "../services/auth.service";
-import { UserCredentials, LoginCredentials, AuthenticatedRequest } from "../types/auth";
+import {
+  UserCredentials,
+  LoginCredentials,
+  AuthenticatedRequest,
+} from "../types/auth";
 
 const authService = new AuthService();
 
@@ -8,7 +12,7 @@ const registerUser = async (req: Request, res: Response): Promise<void> => {
   const credentials: UserCredentials = req.body;
 
   try {
-    if (!await authService.validateEmail(credentials.email)) {
+    if (!(await authService.validateEmail(credentials.email))) {
       res.status(400).json({ error: "Invalid email format" });
       return;
     }
@@ -18,14 +22,16 @@ const registerUser = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    const passwordError = await authService.validatePassword(credentials.password);
+    const passwordError = await authService.validatePassword(
+      credentials.password
+    );
     if (passwordError) {
       res.status(400).json({ error: passwordError });
       return;
     }
 
     const user = await authService.createUser(credentials);
-    
+
     res.status(201).json({
       message: "User registered",
       user: user,
@@ -54,7 +60,7 @@ const loginUser = async (req: Request, res: Response): Promise<void> => {
 
   try {
     const result = await authService.login(credentials);
-    
+
     if (!result) {
       res.status(400).json({ error: "Invalid credentials" });
       return;
@@ -63,7 +69,7 @@ const loginUser = async (req: Request, res: Response): Promise<void> => {
     res.status(200).json({
       message: "Login successful",
       token: result.token,
-      user: result.user
+      user: result.user,
     });
   } catch (err: unknown) {
     if (err instanceof Error) {
@@ -74,7 +80,10 @@ const loginUser = async (req: Request, res: Response): Promise<void> => {
   }
 };
 
-const getCurrentUser = async (req: AuthenticatedRequest, res: Response): Promise<void> => {
+const getCurrentUser = async (
+  req: AuthenticatedRequest,
+  res: Response
+): Promise<void> => {
   res.json({ user: req.user });
 };
 

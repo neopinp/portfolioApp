@@ -8,7 +8,7 @@ import cors from "cors";
 import { verifyToken } from "./backend/middleware/auth.middleware";
 import { PrismaClient } from "@prisma/client";
 import authRoutes from "./backend/routes/authRoutes";
-import portfolioRoutes from "./backend/routes/portfolioRoutes";
+import portfolioRoutes from "./backend/routes/portfolioroutes";
 
 require("dotenv").config();
 
