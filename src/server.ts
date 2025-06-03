@@ -2,13 +2,12 @@
 MAIN FILE - ENTRY POINT - ROUTER REGISTRATION  
 Imports the route definitions and links them into the app 
 */
-import express, { Request, Response } from "express";
-import { AuthenticatedRequest } from "./backend/types/auth";
+import express from "express";
 import cors from "cors";
-import { verifyToken } from "./backend/middleware/auth.middleware";
 import { PrismaClient } from "@prisma/client";
 import authRoutes from "./backend/routes/authRoutes";
 import portfolioRoutes from "./backend/routes/portfolioroutes";
+import holdingRoutes from "./backend/routes/holdingRoutes";
 
 require("dotenv").config();
 
@@ -18,11 +17,20 @@ const prisma = new PrismaClient();
 app.use(cors()); // allow frontend access
 app.use(express.json()); // parse incoming JSON
 
-// Mount routes
+// Mount routes (all start with: '/api/...')
 app.use("/api/auth", authRoutes);
 app.use("/api/portfolios", portfolioRoutes);
+app.use("/api/holdings", holdingRoutes);
 
-// Testing db connection with Prisma
+// Tell Express to listen or fallback to 5000
+const PORT = process.env.PORT || 5000;
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
+
+// Graceful shutdown
+process.on("beforeExit", async () => {
+  await prisma.$disconnect();
+});
+/*Testing db connection with Prisma
 app.get("/api/test-db", async (req: Request, res: Response) => {
   try {
     // Test Prisma connection by running a simple query
@@ -36,8 +44,9 @@ app.get("/api/test-db", async (req: Request, res: Response) => {
     }
   }
 });
+*/
 
-// Protected route
+/* Protected route
 app.get(
   "/api/protected",
   verifyToken,
@@ -45,12 +54,4 @@ app.get(
     res.json({ message: "Access granted", user: req.user });
   }
 );
-
-// Tell Express to listen or fallback to 5000
-const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
-
-// Graceful shutdown
-process.on("beforeExit", async () => {
-  await prisma.$disconnect();
-});
+*/

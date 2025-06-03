@@ -3,12 +3,10 @@ Create a new portfolio
 Get all portfolios for a user
 Get a single portfolio by ID
 Delete a portfolio by ID
-Add a holding to a portfolio
-Update a holding in a portfolio
-Remove a holding from a portfolio 
+
 */
 
-import { Request, Response } from "express";
+import { Response } from "express";
 import { AuthenticatedRequest } from "../types/auth";
 import { PortfolioService } from "../services/portfolioservices";
 
@@ -48,7 +46,7 @@ export const getPortfolio = async (
   res: Response
 ): Promise<void> => {
   try {
-    const userId = parseInt((req.user as any).id); 
+    const userId = parseInt((req.user as any).id);
     const portfolioId = parseInt(req.params.id);
     const portfolio = portfolioService.getPortfolio(userId, portfolioId);
 
