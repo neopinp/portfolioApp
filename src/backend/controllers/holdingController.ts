@@ -54,7 +54,7 @@ export const removeHolding = async (
       res.status(400).json({ error: error.message });
       return;
     }
-    res.status(500).json({ error: error.message });
+    res.status(500).json({ error: "Could not remove holding" });
   }
 };
 

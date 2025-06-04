@@ -33,9 +33,12 @@ export class PortfolioService {
   async getPortfolio(userId: number, portfolioId: number) {
     return this.prisma.portfolios.findFirst({
       where: {
-        id: portfolioId,
         userId,
+        id: portfolioId
       },
+      include: {
+        holdings: true
+      }
     });
   }
 

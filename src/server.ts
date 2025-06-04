@@ -6,7 +6,7 @@ import express from "express";
 import cors from "cors";
 import { PrismaClient } from "@prisma/client";
 import authRoutes from "./backend/routes/authRoutes";
-import portfolioRoutes from "./backend/routes/portfolioroutes";
+import portfolioRoutes from "./backend/routes/portfolioRoutes";
 import holdingRoutes from "./backend/routes/holdingRoutes";
 
 require("dotenv").config();

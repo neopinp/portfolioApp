@@ -3,18 +3,34 @@ POST
 http://localhost:5000/api/auth/login
 http://localhost:5000/api/auth/register
 
-Register
 {
-  "email": "test@example.com",
-  "password": "password123"
-  "username": "tester"
+    "email": "holdingtester@gmail.com",
+    "password": "holding123",
+    "username": "holding"
 }
 
 Login
 {
-    "emailorUsername": "tester",
-    "password": "testpass123"
+    "emailorUsername": "holdingtester@gmail.com",
+    "password": "holding123",
+    "username": "holding"
 }
+
+Portfolios
+
+{
+  "name": "holdings",
+  "startingBalance": 1000
+}
+
+
+Holdings 
+{
+  "symbol": "APP",
+  "amount": 10,
+  "boughtAtPrice": 300.10
+}
+
 
 
 PROTECTED ROUTES 

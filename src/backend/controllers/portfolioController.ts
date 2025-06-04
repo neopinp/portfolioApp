@@ -20,7 +20,19 @@ export const createPortfolio = async (
 ): Promise<void> => {
   try {
     const userId = parseInt((req.user as any).id);
-    const portfolio = await portfolioService.createPortfolio(userId, req.body);
+    
+    // Validate required fields
+    const { name, startingBalance } = req.body;
+    if (!name || typeof name !== 'string') {
+      res.status(400).json({ error: "Missing Portfolio Name" });
+      return;
+    }
+    if (!startingBalance || typeof startingBalance !== 'number' || startingBalance < 0) {
+      res.status(400).json({ error: "Starting balance is required and must be a positive number" });
+      return;
+    }
+
+    const portfolio = await portfolioService.createPortfolio(userId, { name, startingBalance });
     res.json({ message: "Portfolio Created", portfolio });
   } catch (error) {
     console.error("Create Portfolio Error", error);
@@ -48,7 +60,7 @@ export const getPortfolio = async (
   try {
     const userId = parseInt((req.user as any).id);
     const portfolioId = parseInt(req.params.id);
-    const portfolio = portfolioService.getPortfolio(userId, portfolioId);
+    const portfolio = await portfolioService.getPortfolio(userId, portfolioId);
 
     if (!portfolio) {
       res.status(404).json({ error: "Portfolio not Found" });
@@ -56,6 +68,7 @@ export const getPortfolio = async (
     }
     res.json({ message: "Fetched Portfolio", portfolio });
   } catch (error) {
+    console.error("Get Portfolio Error:", error);
     res.status(500).json({ error: "Portfolio Not Found" });
   }
 };
