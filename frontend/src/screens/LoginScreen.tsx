@@ -11,8 +11,9 @@ import {
 import { Input, Text } from "@rneui/themed";
 import { COLORS } from "../constants/colors";
 import { StatsBar } from "../components/StatsBar";
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-export default function LoginScreen() {
+export default function LoginScreen({ navigation }: any) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [emailError, setEmailError] = useState("");
@@ -40,7 +41,20 @@ export default function LoginScreen() {
     console.log("Login attempt with:", { email, password });
   };
 
-  const navigateToRegister = () => console.log("Navigate to Register Screen");
+  const navigateToRegister = async () => {
+    try {
+      console.log("Setting up temporary token...");
+      await AsyncStorage.setItem('userToken', 'temp-token');
+      console.log("Token set, navigating to Onboarding...");
+      navigation.reset({
+        index: 0,
+        routes: [{ name: 'Onboarding' }],
+      });
+    } catch (error) {
+      console.error("Error during navigation:", error);
+    }
+  };
+
   const navigateToForgotPassword = () =>
     console.log("Navigate to Forgot Password");
 
