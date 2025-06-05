@@ -30,3 +30,8 @@ cors - enables Cross-Origin Resource Sharing (Allow API requests to the backend)
 ## Developement
 npm start - production mode
 npm run dev - development mode 
+
+
+
+## Frontend - Development View 
+npm expo start --tunnel (ethernet + wifi)
