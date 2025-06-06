@@ -11,6 +11,7 @@ export const COLORS = {
   textLink: '#D8B8F8',           // Light lavender/purple for links like "Forgot password?"
   textSecondary: '#C8A2C8',       // Muted purple/lavender for "Don't have an account?"
   textSignUpLink: '#FFFFFF',       // Bright white for "Sign up" to make it pop
+  textPink: '#D8B8F8',
 
   // Previous colors (can be removed if no longer used elsewhere)
   primary: '#4285F4', // The blue from the continue button

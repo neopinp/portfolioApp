@@ -2,6 +2,8 @@ import React, { useState } from "react";
 import { View, StyleSheet, ScrollView } from "react-native";
 import { Button, Text, Input, Slider } from "@rneui/themed";
 import { SafeAreaView } from "react-native-safe-area-context";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { COLORS } from "../constants/colors";
 
 type OnBoardingStep = {
   title: string;
@@ -17,20 +19,33 @@ const RiskToleranceStep = ({
   value: number;
 }) => (
   <View style={styles.stepContainer}>
-    <Text h4>What's your risk tolerance?</Text>
-    <Text style={styles.description}>
-      1-10
+    <Text h4 style={styles.stepTitle}>
+      What's your risk tolerance?
     </Text>
-    <Slider
-      value={value}
-      onValueChange={onAnswer}
-      minimumValue={1}
-      maximumValue={10}
-      step={1}
-      trackStyle={{ height: 10 }}
-      thumbStyle={{ height: 20, width: 20 }}
-    />
-    <Text style={styles.sliderValue}>{value}</Text>
+
+    <Text style={styles.description}>Passive to Aggressive</Text>
+    <View style={styles.sliderContainer}>
+      <Slider
+        value={value}
+        onValueChange={onAnswer}
+        minimumValue={1}
+        maximumValue={10}
+        step={1}
+        allowTouchTrack
+        trackStyle={{ height: 5, backgroundColor: "transparent" }}
+        thumbStyle={{ height: 20, width: 20, backgroundColor: COLORS.textPink }}
+        thumbProps={{
+          children: <View style={styles.sliderThumb} />,
+        }}
+        minimumTrackTintColor={COLORS.textPink}
+        maximumTrackTintColor={COLORS.textPlaceholder}
+      />
+      <View style={styles.sliderLabels}>
+        <Text style={styles.sliderLabel}>1</Text>
+        <Text style={styles.sliderValue}>{value}</Text>
+        <Text style={styles.sliderLabel}>10</Text>
+      </View>
+    </View>
   </View>
 );
 
@@ -42,24 +57,39 @@ const InvestmentGoalsStep = ({
   value: string;
 }) => (
   <View style={styles.stepContainer}>
-    <Text h4>Goal?</Text>
+    <Text h4 style={styles.stepTitle}>
+      What's your investment goal?
+    </Text>
+
     <Button
-      title={"Retirement Riches"}
+      title="Retirement Riches"
       type={value === "growth" ? "solid" : "outline"}
       onPress={() => onAnswer("growth")}
       containerStyle={styles.buttonContainer}
+      buttonStyle={value === "growth" ? styles.selectedButton : styles.button}
+      titleStyle={
+        value === "growth" ? styles.selectedButtonText : styles.buttonText
+      }
     />
     <Button
-      title={"Regular Riches"}
+      title="Regular Riches"
       type={value === "income" ? "solid" : "outline"}
       onPress={() => onAnswer("income")}
       containerStyle={styles.buttonContainer}
+      buttonStyle={value === "income" ? styles.selectedButton : styles.button}
+      titleStyle={
+        value === "income" ? styles.selectedButtonText : styles.buttonText
+      }
     />
     <Button
-      title={"Right Now Riches"}
+      title="Right Now Riches"
       type={value === "asap" ? "solid" : "outline"}
       onPress={() => onAnswer("asap")}
       containerStyle={styles.buttonContainer}
+      buttonStyle={value === "asap" ? styles.selectedButton : styles.button}
+      titleStyle={
+        value === "asap" ? styles.selectedButtonText : styles.buttonText
+      }
     />
   </View>
 );
@@ -72,14 +102,25 @@ const InitialInvestmentStep = ({
   value: string;
 }) => (
   <View style={styles.stepContainer}>
-    <Text h4>Initial Investment Amount?</Text>
-    <Text style={styles.description}>Starting Balance:</Text>
+    <Text h4 style={styles.stepTitle}>
+      Initial Investment 
+    </Text>
+    <Text style={styles.description}>
+      How much would you like to start with?
+    </Text>
     <Input
       placeholder="Enter amount"
       keyboardType="numeric"
       value={value}
       onChangeText={onAnswer}
-      leftIcon={{ type: "font-awesome", name: "dollar" }}
+      leftIcon={{
+        type: "font-awesome",
+        name: "dollar",
+        color: COLORS.textWhite,
+      }}
+      inputStyle={styles.inputText}
+      containerStyle={styles.inputContainer}
+      inputContainerStyle={styles.inputBorder}
     />
   </View>
 );
@@ -117,11 +158,22 @@ export const OnboardingScreen = ({ navigation }: any) => {
     }));
   };
 
-  const handleNext = () => {
+  const handleNext = async () => {
     if (currentStep < steps.length - 1) {
       setCurrentStep((prev) => prev + 1);
     } else {
-      navigation.replace("Dashboard");
+      try {
+        // Store onboarding completion status
+        await AsyncStorage.setItem("hasCompletedOnboarding", "true");
+        // Store onboarding answers if needed
+        await AsyncStorage.setItem(
+          "onboardingAnswers",
+          JSON.stringify(answers)
+        );
+        navigation.replace("Dashboard");
+      } catch (error) {
+        console.error("Error saving onboarding data:", error);
+      }
     }
   };
 
@@ -150,7 +202,9 @@ export const OnboardingScreen = ({ navigation }: any) => {
         <Button
           title={currentStep === steps.length - 1 ? "Complete" : "Next"}
           onPress={handleNext}
-          containerStyle={styles.buttonContainer}
+          containerStyle={styles.nextButtonContainer}
+          buttonStyle={styles.nextButton}
+          titleStyle={styles.nextButtonText}
         />
       </ScrollView>
     </SafeAreaView>
@@ -160,7 +214,7 @@ export const OnboardingScreen = ({ navigation }: any) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#fff",
+    backgroundColor: COLORS.deepPurpleBackground,
   },
   scrollContainer: {
     flexGrow: 1,
@@ -181,24 +235,95 @@ const styles = StyleSheet.create({
     width: 10,
     height: 10,
     borderRadius: 5,
-    backgroundColor: "#E0E0E0",
+    backgroundColor: COLORS.textPlaceholder,
     marginHorizontal: 5,
   },
   progressDotActive: {
-    backgroundColor: "#2089dc",
+    backgroundColor: COLORS.textPink,
   },
-  buttonContainer: {
-    marginVertical: 10,
-    width: "100%",
+  stepTitle: {
+    color: COLORS.textWhite,
+    textAlign: "center",
+    marginBottom: 20,
   },
   description: {
     textAlign: "center",
-    marginVertical: 20,
-    color: "#666",
+    marginVertical: 10,
+    color: COLORS.textWhite,
+    opacity: 0.8,
+  },
+  sliderContainer: {
+    width: "100%",
+    paddingHorizontal: 20,
+    marginTop: 30,
+  },
+  sliderThumb: {
+    width: 20,
+    height: 20,
+    borderRadius: 10,
+    backgroundColor: COLORS.textPink,
+  },
+  sliderLabels: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginTop: 10,
+  },
+  sliderLabel: {
+    color: COLORS.textWhite,
+    opacity: 0.8,
   },
   sliderValue: {
     fontSize: 24,
     fontWeight: "bold",
-    marginTop: 10,
+    color: COLORS.textWhite,
+  },
+  buttonContainer: {
+    marginVertical: 10,
+    width: "100%",
+    paddingHorizontal: 20,
+  },
+  button: {
+    backgroundColor: "transparent",
+    borderColor: COLORS.textPink,
+    borderWidth: 1,
+    height: 50,
+    borderRadius: 25,
+  },
+  selectedButton: {
+    backgroundColor: COLORS.textPink,
+    height: 50,
+    borderRadius: 25,
+  },
+  buttonText: {
+    color: COLORS.textPink,
+  },
+  selectedButtonText: {
+    color: COLORS.textWhite,
+  },
+  inputContainer: {
+    width: "100%",
+    paddingHorizontal: 20,
+  },
+  inputBorder: {
+    borderBottomColor: COLORS.textPink,
+  },
+  inputText: {
+    color: COLORS.textWhite,
+    fontSize: 16,
+  },
+  nextButtonContainer: {
+    marginTop: 40,
+    width: "100%",
+    paddingHorizontal: 20,
+  },
+  nextButton: {
+    backgroundColor: COLORS.textPink,
+    height: 50,
+    borderRadius: 25,
+  },
+  nextButtonText: {
+    fontSize: 16,
+    fontWeight: "600",
   },
 });

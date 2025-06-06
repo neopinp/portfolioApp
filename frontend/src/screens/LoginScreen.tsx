@@ -11,21 +11,38 @@ import {
 import { Input, Text } from "@rneui/themed";
 import { COLORS } from "../constants/colors";
 import { StatsBar } from "../components/StatsBar";
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import AsyncStorage from "@react-native-async-storage/async-storage";
 
 export default function LoginScreen({ navigation }: any) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [emailError, setEmailError] = useState("");
+  const [passwordError, setPasswordError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [isNewUser, setIsNewUser] = useState(false);
   const fadeAnim = useState(new Animated.Value(0))[0];
 
-  const handleEmailSubmit = () => {
+  const checkEmailExists = async (email: string) => {
+    try {
+      // TODO: Replace with actual API call to check if email exists
+      // For now, we'll simulate with AsyncStorage
+      const existingEmail = await AsyncStorage.getItem("userEmail");
+      return existingEmail === email;
+    } catch (error) {
+      console.error("Error checking email:", error);
+      return false;
+    }
+  };
+
+  const handleEmailSubmit = async () => {
     Keyboard.dismiss();
     if (!email || !email.includes("@")) {
       setEmailError("Please enter a valid email address.");
       return;
     }
+    
+    const emailExists = await checkEmailExists(email);
+    setIsNewUser(!emailExists);
     setEmailError("");
     Animated.timing(fadeAnim, {
       toValue: 1,
@@ -35,28 +52,37 @@ export default function LoginScreen({ navigation }: any) {
     setShowPassword(true);
   };
 
-  const handleLogin = () => {
-    Keyboard.dismiss();
-    // TODO: Implement actual login logic
-    console.log("Login attempt with:", { email, password });
+  const validatePassword = () => {
+    if (!password) {
+      setPasswordError("Password is required");
+      return false;
+    }
+    if (password.length < 6) {
+      setPasswordError("Password must be at least 6 characters");
+      return false;
+    }
+    return true;
   };
 
-  const navigateToRegister = async () => {
+  const handleSubmit = async () => {
+    Keyboard.dismiss();
+    if (!validatePassword()) return;
+
     try {
-      console.log("Setting up temporary token...");
-      await AsyncStorage.setItem('userToken', 'temp-token');
-      console.log("Token set, navigating to Onboarding...");
-      navigation.reset({
-        index: 0,
-        routes: [{ name: 'Onboarding' }],
-      });
+      if (isNewUser) {
+        // TODO: Replace with actual API call to register user
+        await AsyncStorage.setItem("userToken", "temp-token");
+        await AsyncStorage.setItem("userEmail", email);
+        navigation.replace("Onboarding");
+      } else {
+        // TODO: Implement actual login logic
+        navigation.navigate("Dashboard")
+      }
     } catch (error) {
-      console.error("Error during navigation:", error);
+      console.error("Authentication error:", error);
+      // TODO: Show error message to user
     }
   };
-
-  const navigateToForgotPassword = () =>
-    console.log("Navigate to Forgot Password");
 
   return (
     <View style={styles.container}>
@@ -117,15 +143,29 @@ export default function LoginScreen({ navigation }: any) {
                 <Input
                   placeholder="••••••••"
                   value={password}
-                  onChangeText={setPassword}
+                  onChangeText={(text) => {
+                    setPassword(text);
+                    if (passwordError) setPasswordError("");
+                  }}
                   secureTextEntry
                   returnKeyType="go"
-                  onSubmitEditing={handleLogin}
+                  onSubmitEditing={handleSubmit}
                   inputContainerStyle={styles.input}
                   inputStyle={styles.inputText}
                   placeholderTextColor={COLORS.textPlaceholder}
+                  errorMessage={passwordError}
+                  errorStyle={styles.errorText}
                   containerStyle={[styles.inputWrapper, { width: 250 }]}
                 />
+
+                <TouchableOpacity
+                  style={styles.actionButton}
+                  onPress={handleSubmit}
+                >
+                  <Text style={styles.actionButtonText}>
+                    {isNewUser ? "Create Account" : "Log In"}
+                  </Text>
+                </TouchableOpacity>
               </Animated.View>
             )}
           </View>
@@ -134,20 +174,11 @@ export default function LoginScreen({ navigation }: any) {
 
       {/* Fixed Bottom Section */}
       <View style={styles.bottomSection}>
-        {!showPassword ? (
-          // Sign Up Link (Email Screen)
-          <TouchableOpacity
-            style={styles.bottomLink}
-            onPress={navigateToRegister}
-          >
-            <Text style={styles.signUpText}>Sign up</Text>
-          </TouchableOpacity>
-        ) : (
-          // Forgot Password Link (Password Screen)
+        {showPassword && (
           <Animated.View style={{ opacity: fadeAnim }}>
             <TouchableOpacity
               style={styles.bottomLink}
-              onPress={navigateToForgotPassword}
+              onPress={() => navigation.navigate("ForgotPassword")}
             >
               <Text style={styles.forgotPasswordText}>Forgot password?</Text>
             </TouchableOpacity>
@@ -167,7 +198,7 @@ const styles = StyleSheet.create({
     paddingTop: Platform.OS === "ios" ? 50 : 30,
     paddingHorizontal: 30,
     alignItems: "center",
-    marginTop: 50, // Keep the header lower
+    marginTop: 50,
   },
   mainTitle: {
     fontSize: 48,
@@ -183,7 +214,7 @@ const styles = StyleSheet.create({
     flex: 1,
     paddingHorizontal: 30,
     justifyContent: "center",
-    marginTop: -100, // Adjust input position relative to header
+    marginTop: -100,
   },
   inputSection: {
     width: "100%",
@@ -192,7 +223,7 @@ const styles = StyleSheet.create({
   centeredInputWrapper: {
     alignItems: "center",
     width: "100%",
-    marginBottom: 300
+    marginBottom: 300,
   },
   inputWrapper: {
     paddingHorizontal: 0,
@@ -215,24 +246,31 @@ const styles = StyleSheet.create({
     marginLeft: 10,
     marginTop: 5,
   },
+  actionButton: {
+    backgroundColor: "transparent",
+    borderRadius: 25,
+    paddingVertical: 12,
+    paddingHorizontal: 30,
+    marginTop: 20,
+  },
+  actionButtonText: {
+    color: COLORS.textPink,
+    fontSize: 16,
+    fontWeight: "600",
+  },
   bottomSection: {
     position: "absolute",
     bottom: 40,
     left: 0,
     right: 0,
     alignItems: "center",
-    backgroundColor: COLORS.deepPurpleBackground, // Ensure consistent background
+    backgroundColor: COLORS.deepPurpleBackground,
   },
   bottomLink: {
     paddingVertical: 10,
   },
-  signUpText: {
-    color: COLORS.textSignUpLink,
-    fontSize: 15,
-    fontWeight: "bold",
-  },
   forgotPasswordText: {
-    color: COLORS.textLink,
+    color: COLORS.textWhite,
     fontSize: 14,
     fontWeight: "500",
   },

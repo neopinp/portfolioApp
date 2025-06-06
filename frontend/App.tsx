@@ -4,9 +4,9 @@ import { createNativeStackNavigator } from "@react-navigation/native-stack";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { ThemeProvider } from "@rneui/themed";
 import AsyncStorage from "@react-native-async-storage/async-storage";
-import LoginScreen from './src/screens/LoginScreen';
-import { OnboardingScreen } from './src/screens/OnboardingScreen';
-import { DashboardScreen } from './src/screens/DashboardScreen';
+import LoginScreen from "./src/screens/LoginScreen";
+import { OnboardingScreen } from "./src/screens/OnboardingScreen";
+import { DashboardScreen } from "./src/screens/DashboardScreen";
 
 // We'll create these screens next
 const Stack = createNativeStackNavigator();
@@ -18,12 +18,21 @@ export default function App() {
   useEffect(() => {
     const initializeApp = async () => {
       try {
+        // During development, clear AsyncStorage to test navigation
+
+
         const token = await AsyncStorage.getItem("userToken");
-        const hasCompletedOnboarding = await AsyncStorage.getItem("hasCompletedOnboarding");
-        
+        const hasCompletedOnboarding = await AsyncStorage.getItem(
+          "hasCompletedOnboarding"
+        );
+
         let route = "Login";
-        if (token) {
-          route = hasCompletedOnboarding ? "Dashboard" : "Onboarding";
+        if (token && hasCompletedOnboarding === "true") {
+          setInitialRoute("Dashboard");
+        } else if (token) {
+          setInitialRoute("Onboarding");
+        } else {
+          setInitialRoute("Login");
         }
         setInitialRoute(route);
       } catch (e) {
@@ -49,8 +58,8 @@ export default function App() {
       <ThemeProvider>
         <NavigationContainer>
           <Stack.Navigator initialRouteName={initialRoute}>
-            <Stack.Screen 
-              name="Login" 
+            <Stack.Screen
+              name="Login"
               component={LoginScreen}
               options={{ headerShown: false }}
             />
@@ -63,7 +72,7 @@ export default function App() {
               name="Dashboard"
               component={DashboardScreen}
               options={{
-                headerTitle: 'Portfolio Overview',
+                headerTitle: "Portfolio Overview",
                 headerLargeTitle: true,
               }}
             />
