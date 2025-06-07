@@ -1,16 +1,11 @@
 {
   "compilerOptions": {
     "target": "ES6",
-    "module": "commonjs",
+    "module": "Node16",
     "rootDir": "src",
-    "moduleResolution": "node",
-    "typeRoots": [
-      "src/types",
-      "./node_modules/@types"
-    ],
-    "types": [
-      "node"
-    ],
+    "moduleResolution": "node16",
+    "typeRoots": ["src/types", "./node_modules/@types"],
+    "types": ["node"],
     "outDir": "./dist",
     "esModuleInterop": true,
     "forceConsistentCasingInFileNames": true,
@@ -19,11 +14,7 @@
     "noImplicitThis": true,
     "skipLibCheck": true
   },
-  "include": [
-    "src/**/*"
-  ],
-  "exclude": [
-    "node_modules"
-  ],
+  "include": ["src/**/*"],
+  "exclude": ["node_modules"],
   "extends": "expo/tsconfig.base"
 }
