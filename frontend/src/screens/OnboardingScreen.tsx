@@ -103,7 +103,7 @@ const InitialInvestmentStep = ({
 }) => (
   <View style={styles.stepContainer}>
     <Text h4 style={styles.stepTitle}>
-      Initial Investment 
+      Initial Investment
     </Text>
     <Text style={styles.description}>
       How much would you like to start with?
@@ -162,18 +162,8 @@ export const OnboardingScreen = ({ navigation }: any) => {
     if (currentStep < steps.length - 1) {
       setCurrentStep((prev) => prev + 1);
     } else {
-      try {
-        // Store onboarding completion status
-        await AsyncStorage.setItem("hasCompletedOnboarding", "true");
-        // Store onboarding answers if needed
-        await AsyncStorage.setItem(
-          "onboardingAnswers",
-          JSON.stringify(answers)
-        );
-        navigation.replace("Dashboard");
-      } catch (error) {
-        console.error("Error saving onboarding data:", error);
-      }
+      // Skip saving to AsyncStorage for testing
+      navigation.replace("Main");
     }
   };
 

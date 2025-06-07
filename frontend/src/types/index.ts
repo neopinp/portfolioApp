@@ -1,8 +1,3 @@
-export interface User {
-  id: number;
-  email: string;
-}
-
 export interface Portfolio {
   id: number;
   name: string;
@@ -15,9 +10,4 @@ export interface Holding {
   symbol: string;
   amount: number;
   boughtAtPrice: number;
-}
-
-export interface AuthResponse {
-  token: string;
-  user: User;
 } 

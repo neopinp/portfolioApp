@@ -1,0 +1,266 @@
+import React, { useState } from 'react';
+import {
+  View,
+  ScrollView,
+  TouchableOpacity,
+  StyleSheet,
+  FlatList,
+  Animated,
+} from 'react-native';
+import { Text, Input, Icon, Button } from '@rneui/themed';
+import { SafeAreaView } from 'react-native-safe-area-context';
+import { COLORS } from '../constants/colors';
+import { PortfolioChart } from '../components/PortfolioChart';
+
+interface Asset {
+  symbol: string;
+  name: string;
+  price: number;
+  change: number;
+}
+
+export const AssetsScreen = ({ navigation }: any) => {
+  const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
+  const [showSearch, setShowSearch] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [timeRanges] = useState(['1D', '1W', '1M', '3M', '6M']);
+  const [selectedRange, setSelectedRange] = useState('1M');
+
+  const topMovers: Asset[] = [
+    { symbol: 'AAPL', name: 'Apple Inc.', price: 189.84, change: 2.3 },
+    { symbol: 'TSLA', name: 'Tesla Inc.', price: 238.45, change: -1.8 },
+    { symbol: 'NVDA', name: 'NVIDIA Corp.', price: 477.76, change: 3.5 },
+    { symbol: 'META', name: 'Meta Platforms', price: 341.49, change: 1.7 },
+  ];
+
+  const renderMoverCard = ({ item }: { item: Asset }) => (
+    <TouchableOpacity
+      style={[
+        styles.moverCard,
+        selectedAsset?.symbol === item.symbol && styles.selectedMoverCard
+      ]}
+      onPress={() => setSelectedAsset(item)}
+    >
+      <Text style={styles.symbolText}>{item.symbol}</Text>
+      <Text style={styles.priceText}>${item.price}</Text>
+      <Text style={[
+        styles.changeText,
+        { color: item.change >= 0 ? '#4CAF50' : '#FF5252' }
+      ]}>
+        {item.change > 0 ? '+' : ''}{item.change}%
+      </Text>
+    </TouchableOpacity>
+  );
+
+  const handleSearch = () => {
+    setShowSearch(true);
+  };
+
+  const handleTrade = () => {
+    // TODO: Implement trade bottom sheet
+  };
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <ScrollView
+        style={styles.scrollView}
+        contentContainerStyle={styles.scrollContent}
+      >
+        {/* Header */}
+        <View style={styles.header}>
+          <Text style={styles.title}>ASSETS</Text>
+          <TouchableOpacity onPress={handleSearch}>
+            <Icon name="search" type="feather" color={COLORS.textWhite} size={24} />
+          </TouchableOpacity>
+        </View>
+
+        {/* Top Movers */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Top Market Movers</Text>
+          <FlatList
+            data={topMovers}
+            renderItem={renderMoverCard}
+            keyExtractor={item => item.symbol}
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.moversList}
+          />
+        </View>
+
+        {/* Selected Asset View */}
+        {selectedAsset && (
+          <>
+            <View style={styles.section}>
+              <View style={styles.assetHeader}>
+                <View>
+                  <Text style={styles.assetSymbol}>{selectedAsset.symbol}</Text>
+                  <Text style={styles.assetName}>{selectedAsset.name}</Text>
+                </View>
+                <View style={styles.priceContainer}>
+                  <Text style={styles.assetPrice}>${selectedAsset.price}</Text>
+                  <Text style={[
+                    styles.assetChange,
+                    { color: selectedAsset.change >= 0 ? '#4CAF50' : '#FF5252' }
+                  ]}>
+                    {selectedAsset.change > 0 ? '+' : ''}{selectedAsset.change}%
+                  </Text>
+                </View>
+              </View>
+
+              <PortfolioChart
+                data={{
+                  value: selectedAsset.price,
+                  change: selectedAsset.change,
+                  timeRanges,
+                  selectedRange,
+                  onRangeSelect: setSelectedRange,
+                }}
+              />
+
+              <View style={styles.tradeButtons}>
+                <Button
+                  title="Buy"
+                  buttonStyle={[styles.tradeButton, styles.buyButton]}
+                  onPress={handleTrade}
+                />
+                <Button
+                  title="Sell"
+                  buttonStyle={[styles.tradeButton, styles.sellButton]}
+                  onPress={handleTrade}
+                />
+              </View>
+            </View>
+
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Asset Information</Text>
+              <Text style={styles.description}>
+                {selectedAsset.name} is a leading technology company...
+              </Text>
+            </View>
+
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>News</Text>
+              {/* TODO: Add news items */}
+            </View>
+          </>
+        )}
+      </ScrollView>
+    </SafeAreaView>
+  );
+};
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: COLORS.deepPurpleBackground,
+  },
+  scrollView: {
+    flex: 1,
+  },
+  scrollContent: {
+    paddingBottom: 90, // Add padding to account for the navigation bar
+  },
+  header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 15,
+    borderBottomWidth: 1,
+    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: COLORS.textWhite,
+  },
+  section: {
+    padding: 20,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: COLORS.textWhite,
+    marginBottom: 15,
+  },
+  moversList: {
+    paddingRight: 20,
+  },
+  moverCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 12,
+    padding: 15,
+    marginRight: 12,
+    width: 120,
+  },
+  selectedMoverCard: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderColor: COLORS.primary,
+    borderWidth: 1,
+  },
+  symbolText: {
+    color: COLORS.textWhite,
+    fontSize: 16,
+    fontWeight: '600',
+  },
+  priceText: {
+    color: COLORS.textWhite,
+    fontSize: 14,
+    marginTop: 4,
+  },
+  changeText: {
+    fontSize: 14,
+    fontWeight: '600',
+    marginTop: 4,
+  },
+  assetHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 20,
+  },
+  assetSymbol: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: COLORS.textWhite,
+  },
+  assetName: {
+    fontSize: 16,
+    color: COLORS.textSecondary,
+    marginTop: 4,
+  },
+  priceContainer: {
+    alignItems: 'flex-end',
+  },
+  assetPrice: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: COLORS.textWhite,
+  },
+  assetChange: {
+    fontSize: 16,
+    fontWeight: '600',
+    marginTop: 4,
+  },
+  tradeButtons: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    marginTop: 20,
+  },
+  tradeButton: {
+    width: '48%',
+    borderRadius: 8,
+    paddingVertical: 12,
+  },
+  buyButton: {
+    backgroundColor: '#4CAF50',
+  },
+  sellButton: {
+    backgroundColor: '#FF5252',
+  },
+  description: {
+    color: COLORS.textSecondary,
+    fontSize: 14,
+    lineHeight: 20,
+  },
+}); 

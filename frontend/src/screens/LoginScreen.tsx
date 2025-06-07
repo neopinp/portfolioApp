@@ -40,7 +40,7 @@ export default function LoginScreen({ navigation }: any) {
       setEmailError("Please enter a valid email address.");
       return;
     }
-    
+
     const emailExists = await checkEmailExists(email);
     setIsNewUser(!emailExists);
     setEmailError("");
@@ -70,17 +70,14 @@ export default function LoginScreen({ navigation }: any) {
 
     try {
       if (isNewUser) {
-        // TODO: Replace with actual API call to register user
-        await AsyncStorage.setItem("userToken", "temp-token");
-        await AsyncStorage.setItem("userEmail", email);
+        // Skip saving token for testing
         navigation.replace("Onboarding");
       } else {
-        // TODO: Implement actual login logic
-        navigation.navigate("Dashboard")
+        // Skip token check for testing
+        navigation.navigate("Main");
       }
     } catch (error) {
       console.error("Authentication error:", error);
-      // TODO: Show error message to user
     }
   };
 
