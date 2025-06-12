@@ -5,7 +5,8 @@ import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
 import { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { ThemeProvider } from "@rneui/themed";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { AuthProvider, useAuth } from "./src/contexts/AuthContext";
+import { storage } from "./src/utils/storage";
 import LoginScreen from "./src/screens/LoginScreen";
 import { OnboardingScreen } from "./src/screens/OnboardingScreen";
 import { DashboardScreen } from "./src/screens/DashboardScreen";
@@ -50,52 +51,75 @@ function MainTabs() {
   );
 }
 
-export default function App() {
+function Navigation() {
+  const { user, isLoading } = useAuth();
   const [isFirstLaunch, setIsFirstLaunch] = useState<boolean | null>(null);
-  const [hasToken, setHasToken] = useState<boolean>(false);
 
   useEffect(() => {
-    AsyncStorage.getItem("alreadyLaunched").then((launched) => {
-      if (launched === null) {
-        AsyncStorage.setItem("alreadyLaunched", "true");
-        setIsFirstLaunch(true);
-      } else {
+    const checkFirstLaunch = async () => {
+      try {
+        const hasLaunched = await storage.getItem<boolean>('FIRST_LAUNCH');
+        if (hasLaunched === null) {
+          await storage.setItem('FIRST_LAUNCH', true);
+          setIsFirstLaunch(true);
+        } else {
+          setIsFirstLaunch(false);
+        }
+      } catch (error) {
+        console.error('Error checking first launch:', error);
         setIsFirstLaunch(false);
       }
-    });
+    };
+
+    checkFirstLaunch();
   }, []);
 
-  if (isFirstLaunch === null) {
-    return null;
+  if (isLoading || isFirstLaunch === null) {
+    return null; // Or a loading screen
   }
 
   return (
+    <NavigationContainer>
+      <Stack.Navigator
+        screenOptions={{
+          headerShown: false,
+          contentStyle: { backgroundColor: "transparent" },
+        }}
+      >
+        {!user ? (
+          // Auth Stack
+          <>
+            <Stack.Screen name="Login" component={LoginScreen} />
+            <Stack.Screen name="Onboarding" component={OnboardingScreen} />
+          </>
+        ) : (
+          // App Stack
+          <>
+            <Stack.Screen name="Main" component={MainTabs} />
+            <Stack.Screen
+              name="AddAsset"
+              component={AssetsScreen}
+              options={{
+                presentation: "modal",
+                headerShown: true,
+                headerTitle: "Add Asset",
+                headerTransparent: true,
+              }}
+            />
+          </>
+        )}
+      </Stack.Navigator>
+    </NavigationContainer>
+  );
+}
+
+export default function App() {
+  return (
     <SafeAreaProvider>
       <ThemeProvider>
-        <NavigationContainer>
-          <Stack.Navigator
-            screenOptions={{
-              headerShown: false,
-              contentStyle: { backgroundColor: "transparent" },
-            }}
-          >
-            <>
-              <Stack.Screen name="Login" component={LoginScreen} />
-              <Stack.Screen name="Onboarding" component={OnboardingScreen} />
-              <Stack.Screen name="Main" component={MainTabs} />
-              <Stack.Screen
-                name="AddAsset"
-                component={AssetsScreen}
-                options={{
-                  presentation: "modal",
-                  headerShown: true,
-                  headerTitle: "Add Asset",
-                  headerTransparent: true,
-                }}
-              />
-            </>
-          </Stack.Navigator>
-        </NavigationContainer>
+        <AuthProvider>
+          <Navigation />
+        </AuthProvider>
       </ThemeProvider>
     </SafeAreaProvider>
   );

@@ -8,6 +8,7 @@ import { PrismaClient } from "@prisma/client";
 import authRoutes from "./backend/routes/authRoutes";
 import portfolioRoutes from "./backend/routes/portfolioroutes";
 import holdingRoutes from "./backend/routes/holdingRoutes";
+import testRoutes from "./backend/routes/testRoutes";
 
 require("dotenv").config();
 
@@ -21,6 +22,7 @@ app.use(express.json()); // parse incoming JSON
 app.use("/api/auth", authRoutes);
 app.use("/api/portfolios", portfolioRoutes);
 app.use("/api/holdings", holdingRoutes);
+app.use("/api/test", testRoutes);
 
 // Tell Express to listen or fallback to 5000
 const PORT = process.env.PORT || 5000;
@@ -30,6 +32,13 @@ app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
 process.on("beforeExit", async () => {
   await prisma.$disconnect();
 });
+
+
+
+
+
+
+
 /*Testing db connection with Prisma
 app.get("/api/test-db", async (req: Request, res: Response) => {
   try {

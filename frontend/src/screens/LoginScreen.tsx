@@ -7,49 +7,48 @@ import {
   Platform,
   Animated,
   KeyboardAvoidingView,
+  TouchableWithoutFeedback,
+  Alert,
 } from "react-native";
 import { Input, Text } from "@rneui/themed";
 import { COLORS } from "../constants/colors";
 import { StatsBar } from "../components/StatsBar";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { useAuth } from "../contexts/AuthContext";
+import { storage, STORAGE_KEYS } from "../utils/storage";
+
+// Email validation function
+const validateEmail = (email: string): boolean => {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email);
+};
 
 export default function LoginScreen({ navigation }: any) {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
+  const [username, setUsername] = useState("");
   const [emailError, setEmailError] = useState("");
   const [passwordError, setPasswordError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [isNewUser, setIsNewUser] = useState(false);
+  const [showUsernameInput, setShowUsernameInput] = useState(false);
+  const [error, setError] = useState("");
   const fadeAnim = useState(new Animated.Value(0))[0];
 
-  const checkEmailExists = async (email: string) => {
-    try {
-      // TODO: Replace with actual API call to check if email exists
-      // For now, we'll simulate with AsyncStorage
-      const existingEmail = await AsyncStorage.getItem("userEmail");
-      return existingEmail === email;
-    } catch (error) {
-      console.error("Error checking email:", error);
-      return false;
-    }
-  };
-
   const handleEmailSubmit = async () => {
-    Keyboard.dismiss();
-    if (!email || !email.includes("@")) {
-      setEmailError("Please enter a valid email address.");
+    if (!validateEmail(email)) {
+      setError("Please enter a valid email address");
       return;
     }
 
-    const emailExists = await checkEmailExists(email);
-    setIsNewUser(!emailExists);
-    setEmailError("");
-    Animated.timing(fadeAnim, {
-      toValue: 1,
-      duration: 300,
-      useNativeDriver: true,
-    }).start();
-    setShowPassword(true);
+    try {
+      // Check if this is a new user by looking for existing user data
+      const userData = await storage.getItem<{ email: string }>(STORAGE_KEYS.USER_DATA);
+      setIsNewUser(!userData || userData.email !== email);
+      setShowUsernameInput(true);
+    } catch (error) {
+      console.error("Error checking email:", error);
+      setError("An error occurred. Please try again.");
+    }
   };
 
   const validatePassword = () => {

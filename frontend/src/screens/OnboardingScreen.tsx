@@ -1,8 +1,8 @@
 import React, { useState } from "react";
-import { View, StyleSheet, ScrollView } from "react-native";
+import { View, StyleSheet, ScrollView, Dimensions } from "react-native";
 import { Button, Text, Input, Slider } from "@rneui/themed";
 import { SafeAreaView } from "react-native-safe-area-context";
-import AsyncStorage from "@react-native-async-storage/async-storage";
+import { storage, STORAGE_KEYS } from "../utils/storage";
 import { COLORS } from "../constants/colors";
 
 type OnBoardingStep = {
@@ -162,8 +162,12 @@ export const OnboardingScreen = ({ navigation }: any) => {
     if (currentStep < steps.length - 1) {
       setCurrentStep((prev) => prev + 1);
     } else {
-      // Skip saving to AsyncStorage for testing
-      navigation.replace("Main");
+      try {
+        await storage.setItem(STORAGE_KEYS.ONBOARDING_COMPLETE, true);
+        navigation.replace("Login");
+      } catch (error) {
+        console.error("Error saving onboarding status:", error);
+      }
     }
   };
 
