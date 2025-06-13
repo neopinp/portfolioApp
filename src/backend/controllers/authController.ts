@@ -80,6 +80,26 @@ const loginUser = async (req: Request, res: Response): Promise<void> => {
   }
 };
 
+const checkEmail = async (req: Request, res: Response): Promise<void> => {
+  const { email } = req.body;
+
+  try {
+    if (!email) {
+      res.status(400).json({ error: "Email is required" });
+      return;
+    }
+
+    const exists = await authService.checkEmailExists(email);
+    res.status(200).json({ exists });
+  } catch (err: unknown) {
+    if (err instanceof Error) {
+      res.status(500).json({ error: err.message });
+      return;
+    }
+    res.status(500).json({ error: "Unknown server error" });
+  }
+};
+
 const getCurrentUser = async (
   req: AuthenticatedRequest,
   res: Response
@@ -87,4 +107,4 @@ const getCurrentUser = async (
   res.json({ user: req.user });
 };
 
-export { registerUser, loginUser, getCurrentUser };
+export { registerUser, loginUser, checkEmail, getCurrentUser };

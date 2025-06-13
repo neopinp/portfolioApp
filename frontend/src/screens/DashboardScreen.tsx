@@ -14,6 +14,7 @@ import { PortfolioCard } from "../components/PortfolioCard";
 import { StatsBar } from "../components/StatsBar";
 import { HoldingItem } from "../components/HoldingItem";
 import { PortfolioChart } from "../components/PortfolioChart";
+import { useAuth } from "../contexts/AuthContext";
 
 interface Portfolio {
   id: number;
@@ -32,6 +33,7 @@ interface Asset {
 type PortfolioOrNew = Portfolio | { id: number };
 
 export const DashboardScreen = ({ navigation }: any) => {
+  const { logout, user } = useAuth();
   const [portfolios] = useState<Portfolio[]>([
     { id: 1, name: "Portfolio Name", value: 45678.9, riskScore: 8, change: 8.5 },
     { id: 2, name: "Tech Growth", value: 32150.75, riskScore: 7, change: -2.3 },
@@ -146,6 +148,21 @@ export const DashboardScreen = ({ navigation }: any) => {
     <SafeAreaView style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.title}>STOX</Text>
+        <TouchableOpacity 
+          style={styles.logoutButton}
+          onPress={logout}
+        >
+          <Icon
+            name="log-out"
+            type="feather"
+            size={24}
+            color={COLORS.textSecondary}
+          />
+        </TouchableOpacity>
+      </View>
+
+      <View style={styles.welcomeContainer}>
+        <Text style={styles.welcomeText}>@{user?.username || 'User'}</Text>
       </View>
 
       <ScrollView 
@@ -326,10 +343,11 @@ const styles = StyleSheet.create({
     paddingBottom: 90, // Add padding to account for the navigation bar
   },
   header: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
     paddingHorizontal: 20,
-    paddingVertical: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(255, 255, 255, 0.1)",
+    paddingTop: 20,
   },
   title: {
     fontSize: 24,
@@ -496,5 +514,17 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "600",
     marginLeft: 8,
+  },
+  logoutButton: {
+    padding: 10,
+  },
+  welcomeContainer: {
+    paddingHorizontal: 20,
+    paddingBottom: 10,
+  },
+  welcomeText: {
+    fontSize: 16,
+    color: COLORS.textSecondary,
+    opacity: 0.8,
   },
 });

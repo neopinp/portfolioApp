@@ -6,7 +6,7 @@ import { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { ThemeProvider } from "@rneui/themed";
 import { AuthProvider, useAuth } from "./src/contexts/AuthContext";
-import { storage } from "./src/utils/storage";
+import { storage, STORAGE_KEYS } from "./src/utils/storage";
 import LoginScreen from "./src/screens/LoginScreen";
 import { OnboardingScreen } from "./src/screens/OnboardingScreen";
 import { DashboardScreen } from "./src/screens/DashboardScreen";
@@ -52,29 +52,9 @@ function MainTabs() {
 }
 
 function Navigation() {
-  const { user, isLoading } = useAuth();
-  const [isFirstLaunch, setIsFirstLaunch] = useState<boolean | null>(null);
+  const { user, isLoading, isOnboardingComplete } = useAuth();
 
-  useEffect(() => {
-    const checkFirstLaunch = async () => {
-      try {
-        const hasLaunched = await storage.getItem<boolean>('FIRST_LAUNCH');
-        if (hasLaunched === null) {
-          await storage.setItem('FIRST_LAUNCH', true);
-          setIsFirstLaunch(true);
-        } else {
-          setIsFirstLaunch(false);
-        }
-      } catch (error) {
-        console.error('Error checking first launch:', error);
-        setIsFirstLaunch(false);
-      }
-    };
-
-    checkFirstLaunch();
-  }, []);
-
-  if (isLoading || isFirstLaunch === null) {
+  if (isLoading) {
     return null; // Or a loading screen
   }
 
@@ -88,21 +68,35 @@ function Navigation() {
       >
         {!user ? (
           // Auth Stack
-          <>
-            <Stack.Screen name="Login" component={LoginScreen} />
-            <Stack.Screen name="Onboarding" component={OnboardingScreen} />
-          </>
+          <Stack.Screen name="Login" component={LoginScreen} />
+        ) : !isOnboardingComplete ? (
+          // Onboarding Stack
+          <Stack.Screen 
+            name="Onboarding" 
+            component={OnboardingScreen}
+            options={{ gestureEnabled: false }}
+          />
         ) : (
-          // App Stack
+          // Main App Stack
           <>
             <Stack.Screen name="Main" component={MainTabs} />
             <Stack.Screen
-              name="AddAsset"
+              name="Portfolio"
+              component={PortfolioScreen}
+              options={{
+                presentation: "modal",
+                headerShown: true,
+                headerTitle: "",
+                headerTransparent: true,
+              }}
+            />
+            <Stack.Screen
+              name="Assets"
               component={AssetsScreen}
               options={{
                 presentation: "modal",
                 headerShown: true,
-                headerTitle: "Add Asset",
+                headerTitle: "Assets",
                 headerTransparent: true,
               }}
             />

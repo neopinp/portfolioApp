@@ -4,12 +4,19 @@ import { Button, Text, Input, Slider } from "@rneui/themed";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { storage, STORAGE_KEYS } from "../utils/storage";
 import { COLORS } from "../constants/colors";
+import { useAuth } from "../contexts/AuthContext";
 
 type OnBoardingStep = {
   title: string;
   key: string;
   component: React.ComponentType<any>;
 };
+
+interface User {
+  id: number;
+  email: string;
+  username?: string;
+}
 
 const RiskToleranceStep = ({
   onAnswer,
@@ -125,7 +132,8 @@ const InitialInvestmentStep = ({
   </View>
 );
 
-export const OnboardingScreen = ({ navigation }: any) => {
+export const OnboardingScreen = () => {
+  const { completeOnboarding } = useAuth();
   const [currentStep, setCurrentStep] = useState(0);
   const [answers, setAnswers] = useState({
     riskTolerance: 5,
@@ -163,10 +171,13 @@ export const OnboardingScreen = ({ navigation }: any) => {
       setCurrentStep((prev) => prev + 1);
     } else {
       try {
-        await storage.setItem(STORAGE_KEYS.ONBOARDING_COMPLETE, true);
-        navigation.replace("Login");
+        // Save onboarding answers
+        await storage.setItem(STORAGE_KEYS.USER_PREFERENCES, answers);
+        // Complete onboarding
+        await completeOnboarding();
+        // Navigation will be handled by the Navigation component in App.tsx
       } catch (error) {
-        console.error("Error saving onboarding status:", error);
+        console.error("Error completing onboarding:", error);
       }
     }
   };

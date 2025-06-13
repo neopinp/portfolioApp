@@ -1,11 +1,11 @@
 import { API_URL, getApiUrl } from '../config/api';
-import { storage } from '../utils/storage';
+import { storage, STORAGE_KEYS } from '../utils/storage';
 
 // Generic API request function
 const apiRequest = async (endpoint: string, options: RequestInit = {}) => {
   try {
     // Get the auth token
-    const token = await storage.getItem<string>('AUTH_TOKEN');
+    const token = await storage.getItem<string>('auth_token');
     
     // Prepare headers
     const headers = new Headers({
@@ -44,16 +44,40 @@ export const api = {
 
   // Auth endpoints
   auth: {
-    login: (email: string, password: string) => 
-      apiRequest('auth/login', {
+    login: async (email: string, password: string) => {
+      const response = await apiRequest('auth/login', {
         method: 'POST',
-        body: JSON.stringify({ email, password }),
-      }),
-    register: (email: string, password: string, username: string) =>
-      apiRequest('auth/register', {
+        body: JSON.stringify({ emailorUsername: email, password }),
+      });
+      return {
+        token: response.token,
+        user: {
+          ...response.user,
+          onboardingComplete: response.user.onboardingComplete ?? false
+        },
+      };
+    },
+    register: async (email: string, password: string, username: string) => {
+      const response = await apiRequest('auth/register', {
         method: 'POST',
         body: JSON.stringify({ email, password, username }),
-      }),
+      });
+      return {
+        user: {
+          ...response.user,
+          onboardingComplete: false // New users always start with onboarding incomplete
+        },
+      };
+    },
+    checkEmail: async (email: string) => {
+      const response = await apiRequest('auth/check-email', {
+        method: 'POST',
+        body: JSON.stringify({ email }),
+      });
+      return {
+        exists: response.exists,
+      };
+    },
   },
   
   // Portfolio endpoints

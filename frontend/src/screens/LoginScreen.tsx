@@ -7,48 +7,87 @@ import {
   Platform,
   Animated,
   KeyboardAvoidingView,
-  TouchableWithoutFeedback,
-  Alert,
+  ActivityIndicator,
 } from "react-native";
 import { Input, Text } from "@rneui/themed";
 import { COLORS } from "../constants/colors";
 import { StatsBar } from "../components/StatsBar";
-import { useAuth } from "../contexts/AuthContext";
 import { storage, STORAGE_KEYS } from "../utils/storage";
+import { api } from "../services/api";
+import { useAuth } from "../contexts/AuthContext";
 
-// Email validation function
+// Email form validation function
 const validateEmail = (email: string): boolean => {
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   return emailRegex.test(email);
 };
 
 export default function LoginScreen({ navigation }: any) {
+  const { login, register } = useAuth();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [username, setUsername] = useState("");
   const [emailError, setEmailError] = useState("");
   const [passwordError, setPasswordError] = useState("");
+  const [usernameError, setUsernameError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
+  const [showUsername, setShowUsername] = useState(false);
   const [isNewUser, setIsNewUser] = useState(false);
-  const [showUsernameInput, setShowUsernameInput] = useState(false);
   const [error, setError] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
   const fadeAnim = useState(new Animated.Value(0))[0];
 
   const handleEmailSubmit = async () => {
     if (!validateEmail(email)) {
-      setError("Please enter a valid email address");
+      setEmailError("Please enter a valid email address");
       return;
     }
 
     try {
-      // Check if this is a new user by looking for existing user data
-      const userData = await storage.getItem<{ email: string }>(STORAGE_KEYS.USER_DATA);
-      setIsNewUser(!userData || userData.email !== email);
-      setShowUsernameInput(true);
+      setIsLoading(true);
+      // First check if the email exists in the database
+      const response = await api.auth.checkEmail(email);
+      const emailExists = response.exists;
+
+      setIsNewUser(!emailExists);
+      if (emailExists) {
+        // Email exists, skip username screen
+        setShowPassword(true);
+      } else {
+        // New user, show username screen
+        setShowUsername(true);
+        setUsername("");
+      }
+
+      // Start fade animation
+      fadeAnim.setValue(0);
+      Animated.timing(fadeAnim, {
+        toValue: 1,
+        duration: 300,
+        useNativeDriver: true,
+      }).start();
     } catch (error) {
       console.error("Error checking email:", error);
       setError("An error occurred. Please try again.");
+    } finally {
+      setIsLoading(false);
     }
+  };
+
+  const handleUsernameSubmit = () => {
+    if (!username || username.trim() === "") {
+      setUsernameError("Username is required");
+      return;
+    }
+    setShowUsername(false);
+    setShowPassword(true);
+    // Reset animation for password screen
+    fadeAnim.setValue(0);
+    Animated.timing(fadeAnim, {
+      toValue: 1,
+      duration: 300,
+      useNativeDriver: true,
+    }).start();
   };
 
   const validatePassword = () => {
@@ -67,16 +106,30 @@ export default function LoginScreen({ navigation }: any) {
     Keyboard.dismiss();
     if (!validatePassword()) return;
 
+    setIsLoading(true);
+    setError("");
+
     try {
       if (isNewUser) {
-        // Skip saving token for testing
-        navigation.replace("Onboarding");
+        // Register new user
+        await register(email, password, username);
+        // Registration successful - AuthContext will handle state and navigation
       } else {
-        // Skip token check for testing
-        navigation.navigate("Main");
+        // Login existing user
+        await login(email, password);
+        // Login successful - AuthContext will handle state and navigation
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Authentication error:", error);
+      if (error.message.includes("Invalid credentials")) {
+        setPasswordError("Incorrect password");
+      } else if (error.message.includes("already in use")) {
+        setError("Email or username is already in use");
+      } else {
+        setError(error.message || "An error occurred during authentication");
+      }
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -96,7 +149,7 @@ export default function LoginScreen({ navigation }: any) {
         {/* Form Section */}
         <View style={styles.formContainer}>
           <View style={styles.inputSection}>
-            {!showPassword ? (
+            {!showUsername && !showPassword ? (
               // Email Screen
               <View style={styles.centeredInputWrapper}>
                 <Input
@@ -118,6 +171,48 @@ export default function LoginScreen({ navigation }: any) {
                   containerStyle={[styles.inputWrapper, { width: 250 }]}
                 />
               </View>
+            ) : showUsername ? (
+              // Username Screen
+              <Animated.View
+                style={[
+                  styles.centeredInputWrapper,
+                  {
+                    opacity: fadeAnim,
+                    transform: [
+                      {
+                        translateY: fadeAnim.interpolate({
+                          inputRange: [0, 1],
+                          outputRange: [20, 0],
+                        }),
+                      },
+                    ],
+                  },
+                ]}
+              >
+                <Input
+                  placeholder="Choose a username"
+                  value={username}
+                  onChangeText={(text) => {
+                    setUsername(text);
+                    if (usernameError) setUsernameError("");
+                  }}
+                  autoCapitalize="none"
+                  returnKeyType="next"
+                  onSubmitEditing={handleUsernameSubmit}
+                  inputContainerStyle={styles.input}
+                  inputStyle={styles.inputText}
+                  placeholderTextColor={COLORS.textPlaceholder}
+                  errorMessage={usernameError}
+                  errorStyle={styles.errorText}
+                  containerStyle={[styles.inputWrapper, { width: 250 }]}
+                />
+                <TouchableOpacity
+                  style={styles.actionButton}
+                  onPress={handleUsernameSubmit}
+                >
+                  <Text style={styles.actionButtonText}>Continue</Text>
+                </TouchableOpacity>
+              </Animated.View>
             ) : (
               // Password Screen
               <Animated.View
@@ -157,11 +252,18 @@ export default function LoginScreen({ navigation }: any) {
                 <TouchableOpacity
                   style={styles.actionButton}
                   onPress={handleSubmit}
+                  disabled={isLoading}
                 >
-                  <Text style={styles.actionButtonText}>
-                    {isNewUser ? "Create Account" : "Log In"}
-                  </Text>
+                  {isLoading ? (
+                    <ActivityIndicator color={COLORS.textWhite} />
+                  ) : (
+                    <Text style={styles.actionButtonText}>
+                      {isNewUser ? "Create Account" : "Log In"}
+                    </Text>
+                  )}
                 </TouchableOpacity>
+
+                {error ? <Text style={styles.errorText}>{error}</Text> : null}
               </Animated.View>
             )}
           </View>

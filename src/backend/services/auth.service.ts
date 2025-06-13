@@ -61,7 +61,21 @@ export class AuthService {
           { username: emailOrUsername }
         ],
       },
+      select: {
+        id: true,
+        email: true,
+        username: true,
+        password: true
+      }
     });
+  }
+
+  async checkEmailExists(email: string): Promise<boolean> {
+    const user = await this.prisma.users.findUnique({
+      where: { email },
+      select: { id: true }
+    });
+    return !!user;
   }
 
   async comparePasswords(inputPassword: string, hashedPassword: string): Promise<boolean> {
