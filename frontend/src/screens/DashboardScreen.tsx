@@ -65,6 +65,7 @@ export const DashboardScreen = ({ navigation }: any) => {
     { symbol: "AMZN", fullName: "Amazon.com Inc.", riskScore: 6 },
   ]);
 
+  // Initial load of portfolios
   useEffect(() => {
     loadPortfolios();
   }, []);
@@ -290,7 +291,7 @@ export const DashboardScreen = ({ navigation }: any) => {
   if (portfolios.length === 0) {
     return (
       <SafeAreaView style={styles.container}>
-        <AppHeader />
+        <AppHeader username={user?.username || "User"} />
         {renderEmptyState()}
       </SafeAreaView>
     );
@@ -298,11 +299,7 @@ export const DashboardScreen = ({ navigation }: any) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <AppHeader />
-      <View style={styles.welcomeContainer}>
-        <Text style={styles.welcomeText}>@{user?.username || "User"}</Text>
-      </View>
-
+      <AppHeader username={user?.username || "User"} />
       <ScrollView
         ref={scrollViewRef}
         style={styles.scrollView}

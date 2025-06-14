@@ -13,6 +13,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { COLORS } from "../constants/colors";
 import { api } from "../services/api";
 import { AppHeader } from "../components/AppHeader";
+import { useAuth } from "../contexts/AuthContext";
 
 interface CreatePortfolioScreenProps {
   navigation: any;
@@ -31,6 +32,7 @@ export const CreatePortfolioScreen = ({
   navigation,
   route,
 }: CreatePortfolioScreenProps) => {
+  const { user } = useAuth();
   const prefillData = route.params?.prefillData;
 
   const [name, setName] = useState(prefillData?.name || "");
@@ -75,7 +77,7 @@ export const CreatePortfolioScreen = ({
 
   return (
     <SafeAreaView style={styles.container}>
-      <AppHeader title="Create Portfolio" />
+      <AppHeader title="Create Portfolio" username={user?.username || "User"} />
       <ScrollView style={styles.scrollView}>
         <View style={styles.section}>
           <Input

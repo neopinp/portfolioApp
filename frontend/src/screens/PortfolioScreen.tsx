@@ -7,6 +7,7 @@ import { PortfolioChart } from "../components/PortfolioChart";
 import { HoldingItem } from "../components/HoldingItem";
 import { AppHeader } from "../components/AppHeader";
 import { Icon } from "@rneui/themed";
+import { useAuth } from "../contexts/AuthContext";
 
 interface Holding {
   id: number;
@@ -19,6 +20,7 @@ interface Holding {
 
 export const PortfolioScreen = ({ route, navigation }: any) => {
   const { portfolioId } = route.params;
+  const { user } = useAuth();
   const [timeRanges] = useState(["1D", "1W", "1M", "3M", "6M"]);
   const [selectedRange, setSelectedRange] = useState("1M");
 
@@ -66,7 +68,7 @@ export const PortfolioScreen = ({ route, navigation }: any) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <AppHeader title={portfolio.name} />
+      <AppHeader title={portfolio.name} username={user?.username || "User"} />
       <ScrollView style={styles.scrollView}>
         <View style={styles.section}>
           <PortfolioChart data={chartData} />

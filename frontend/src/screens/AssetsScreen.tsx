@@ -12,6 +12,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { COLORS } from "../constants/colors";
 import { PortfolioChart } from "../components/PortfolioChart";
 import { AppHeader } from "../components/AppHeader";
+import { useAuth } from "../contexts/AuthContext";
 
 interface Asset {
   symbol: string;
@@ -21,6 +22,7 @@ interface Asset {
 }
 
 export const AssetsScreen = ({ navigation }: any) => {
+  const { user } = useAuth();
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
@@ -66,7 +68,7 @@ export const AssetsScreen = ({ navigation }: any) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <AppHeader title="Assets" />
+      <AppHeader title="Assets" username={user?.username || "User"} />
       <ScrollView style={styles.scrollView}>
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
