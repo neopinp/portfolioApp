@@ -19,21 +19,48 @@ export const createPortfolio = async (
   res: Response
 ): Promise<void> => {
   try {
-    const userId = parseInt((req.user as any).id);
-    
-    // Validate required fields
-    const { name, startingBalance } = req.body;
-    if (!name || typeof name !== 'string') {
-      res.status(400).json({ error: "Missing Portfolio Name" });
-      return;
-    }
-    if (!startingBalance || typeof startingBalance !== 'number' || startingBalance < 0) {
-      res.status(400).json({ error: "Starting balance is required and must be a positive number" });
+    if (!req.user?.id) {
+      res.status(401).json({ error: "User not authenticated" });
       return;
     }
 
-    const portfolio = await portfolioService.createPortfolio(userId, { name, startingBalance });
-    res.json({ message: "Portfolio Created", portfolio });
+    const userId = parseInt(req.user.id);
+    if (isNaN(userId)) {
+      res.status(400).json({ error: "Invalid user ID" });
+      return;
+    }
+
+    // Validate required fields
+    const { name, starting_balance, risk_score } = req.body;
+    if (!name || typeof name !== "string") {
+      res.status(400).json({ error: "Missing Portfolio Name" });
+      return;
+    }
+    if (
+      !starting_balance ||
+      typeof starting_balance !== "number" ||
+      starting_balance < 0
+    ) {
+      res
+        .status(400)
+        .json({
+          error: "Starting balance is required and must be a positive number",
+        });
+      return;
+    }
+    if (typeof risk_score !== "number" || risk_score < 1 || risk_score > 10) {
+      res
+        .status(400)
+        .json({ error: "Risk score must be a number between 1 and 10" });
+      return;
+    }
+
+    const portfolio = await portfolioService.createPortfolio(userId, {
+      name,
+      starting_balance,
+      risk_score,
+    });
+    res.json(portfolio);
   } catch (error) {
     console.error("Create Portfolio Error", error);
     res.status(500).json({ error: "Failed to create Portfolio" });
@@ -45,11 +72,22 @@ export const getPortfolios = async (
   res: Response
 ): Promise<void> => {
   try {
-    const userId = parseInt((req.user as any).id);
+    if (!req.user?.id) {
+      res.status(401).json({ error: "User not authenticated" });
+      return;
+    }
+
+    const userId = parseInt(req.user.id);
+    if (isNaN(userId)) {
+      res.status(400).json({ error: "Invalid user ID" });
+      return;
+    }
+
     const portfolios = await portfolioService.getPortfolios(userId);
     res.json(portfolios);
   } catch (error) {
-    res.status(500).json({ error: "No Portfolios Found" });
+    console.error("Get Portfolios Error:", error);
+    res.status(500).json({ error: "Failed to fetch portfolios" });
   }
 };
 

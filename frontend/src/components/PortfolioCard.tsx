@@ -15,7 +15,7 @@ interface PortfolioCardProps {
 
 export const PortfolioCard: React.FC<PortfolioCardProps> = ({
   name,
-  value,
+  value = 0,
   riskScore,
   change = 0,
   onPress,
@@ -39,6 +39,8 @@ export const PortfolioCard: React.FC<PortfolioCardProps> = ({
     return '#4CAF50';
   };
 
+  const formattedValue = typeof value === 'number' ? value.toLocaleString() : '0';
+
   return (
     <TouchableOpacity 
       style={[
@@ -61,7 +63,7 @@ export const PortfolioCard: React.FC<PortfolioCardProps> = ({
           </Text>
         </View>
       </View>
-      <Text style={styles.value}>${value.toLocaleString()}</Text>
+      <Text style={styles.value}>${formattedValue}</Text>
       <Text style={[
         styles.change,
         { color: change >= 0 ? '#4CAF50' : '#FF5252' }

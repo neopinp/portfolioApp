@@ -13,7 +13,9 @@ export class PortfolioService {
       data: {
         userId,
         name: data.name,
-        starting_balance: data.startingBalance,
+        starting_balance: data.starting_balance,
+        risk_score: data.risk_score,
+        created_at: new Date(),
       },
       include: {
         holdings: true,
@@ -43,7 +45,7 @@ export class PortfolioService {
   }
 
   async deletePortfolio(userId: number, portfolioId: number) {
-    const portfolio = this.prisma.portfolios.findFirst({
+    const portfolio = await this.prisma.portfolios.findFirst({
       where: {
         id: portfolioId,
         userId,

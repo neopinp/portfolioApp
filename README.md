@@ -19,20 +19,20 @@ npm install --save-dev nodemon
 npm install prisma --save-dev
 npm install @prisma/client
 npm prisma init
+npx prisma generate 
 
 express - web server and routes (API endpoints)
 pg - PostgreSQL 
 bcrypt - Hashes passwords securely (registration/login)
 jswonwebtoken - creates and verifies JWT for user authentication
 cors - enables Cross-Origin Resource Sharing (Allow API requests to the backend)
+React Native 
+Expo 
 
-
-## Developement
+## Backend - Developement
 npm start - production mode
 npm run dev - development mode 
-ngrok
-
-
 
 ## Frontend - Development View 
+npx ngrok http 5000
 npm expo start --tunnel (ethernet + wifi)

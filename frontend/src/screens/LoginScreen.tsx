@@ -116,14 +116,17 @@ export default function LoginScreen({ navigation }: any) {
         // Registration successful - AuthContext will handle state and navigation
       } else {
         // Login existing user
-        await login(email, password);
+        const loginSuccess = await login(email, password);
+        if (!loginSuccess) {
+          setPasswordError("Incorrect password");
+          setPassword(""); // Clear password field for retry
+          return; // Return early to maintain screen state
+        }
         // Login successful - AuthContext will handle state and navigation
       }
     } catch (error: any) {
       console.error("Authentication error:", error);
-      if (error.message.includes("Invalid credentials")) {
-        setPasswordError("Incorrect password");
-      } else if (error.message.includes("already in use")) {
+      if (error.message.includes("already in use")) {
         setError("Email or username is already in use");
       } else {
         setError(error.message || "An error occurred during authentication");

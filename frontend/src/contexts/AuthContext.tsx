@@ -21,8 +21,12 @@ interface AuthContextType {
   isLoading: boolean;
   error: string | null;
   isOnboardingComplete: boolean;
-  login: (email: string, password: string) => Promise<void>;
-  register: (email: string, password: string, username: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<boolean>;
+  register: (
+    email: string,
+    password: string,
+    username: string
+  ) => Promise<void>;
   logout: () => Promise<void>;
   clearError: () => void;
   setUser: (user: User | null) => void;
@@ -46,18 +50,24 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   useEffect(() => {
     const loadStoredAuth = async () => {
       try {
-        const storedToken = await storage.getItem<string>(STORAGE_KEYS.AUTH_TOKEN);
+        const storedToken = await storage.getItem<string>(
+          STORAGE_KEYS.AUTH_TOKEN
+        );
         const storedUser = await storage.getItem<User>(STORAGE_KEYS.USER_DATA);
 
         if (storedToken && storedUser) {
           // Check user-specific preferences
-          const userPreferences = await storage.getItem<UserPreferences>(STORAGE_KEYS.USER_PREFERENCES, storedUser.id);
-          const onboardingComplete = storedUser.onboardingComplete || !!userPreferences?.completed;
+          const userPreferences = await storage.getItem<UserPreferences>(
+            STORAGE_KEYS.USER_PREFERENCES,
+            storedUser.id
+          );
+          const onboardingComplete =
+            storedUser.onboardingComplete || !!userPreferences?.completed;
 
           setToken(storedToken);
           setUser({
             ...storedUser,
-            onboardingComplete
+            onboardingComplete,
           });
           setIsOnboardingComplete(onboardingComplete);
         } else {
@@ -93,44 +103,53 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       }
 
       // Get user-specific preferences
-      const userPreferences = await storage.getItem<UserPreferences>(STORAGE_KEYS.USER_PREFERENCES, response.user.id);
-      
+      const userPreferences = await storage.getItem<UserPreferences>(
+        STORAGE_KEYS.USER_PREFERENCES,
+        response.user.id
+      );
+
       // Determine onboarding status from multiple sources
-      const onboardingComplete = 
+      const onboardingComplete =
         response.user.onboardingComplete || // from server
-        !!userPreferences?.completed;       // from stored preferences
+        !!userPreferences?.completed; // from stored preferences
 
       const userData = {
         ...response.user,
-        onboardingComplete
+        onboardingComplete,
       };
 
       // Store user data and token
       await storage.setItem(STORAGE_KEYS.AUTH_TOKEN, response.token);
       await storage.setItem(STORAGE_KEYS.USER_DATA, userData);
-      
+
       // If onboarding was completed before, ensure preferences exist
       if (onboardingComplete) {
         await storage.setItem(
-          STORAGE_KEYS.USER_PREFERENCES, 
-          { completed: true }, 
+          STORAGE_KEYS.USER_PREFERENCES,
+          { completed: true },
           response.user.id
         );
       }
-      
+
       setToken(response.token);
       setUser(userData);
       setIsOnboardingComplete(onboardingComplete);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Login Failed";
       setError(errorMessage);
-      throw new Error(errorMessage);
+      // Don't throw a new error, just return false to indicate failure
+      return false;
     } finally {
       setIsLoading(false);
     }
+    return true;
   };
 
-  const register = async (email: string, password: string, username: string) => {
+  const register = async (
+    email: string,
+    password: string,
+    username: string
+  ) => {
     try {
       setIsLoading(true);
       setError(null);
@@ -152,18 +171,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
       await storage.setItem(STORAGE_KEYS.AUTH_TOKEN, loginResponse.token);
       await storage.setItem(STORAGE_KEYS.USER_DATA, {
         ...loginResponse.user,
-        onboardingComplete: false
+        onboardingComplete: false,
       });
-      
+
       // Set initial state
       setUser({
         ...loginResponse.user,
-        onboardingComplete: false
+        onboardingComplete: false,
       });
       setToken(loginResponse.token);
       setIsOnboardingComplete(false);
     } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Registration Failed";
+      const errorMessage =
+        err instanceof Error ? err.message : "Registration Failed";
       setError(errorMessage);
       throw new Error(errorMessage);
     } finally {
@@ -174,15 +194,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
   const completeOnboarding = async () => {
     try {
       if (!user) throw new Error("No user found");
-      
+
+      // Get existing preferences first
+      const existingPrefs = await storage.getItem<any>(
+        STORAGE_KEYS.USER_PREFERENCES
+      );
+
       const updatedUser = {
         ...user,
-        onboardingComplete: true
+        onboardingComplete: true,
       };
-      
+
       await storage.setItem(STORAGE_KEYS.USER_DATA, updatedUser);
-      await storage.setItem(STORAGE_KEYS.USER_PREFERENCES, { completed: true }, user.id);
-      
+
+      // Preserve existing preferences data when marking as completed
+      await storage.setItem(
+        STORAGE_KEYS.USER_PREFERENCES,
+        {
+          ...existingPrefs,
+          completed: true,
+        },
+        user.id
+      );
+
       setUser(updatedUser);
       setIsOnboardingComplete(true);
     } catch (err) {

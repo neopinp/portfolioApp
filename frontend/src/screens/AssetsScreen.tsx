@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState } from "react";
 import {
   View,
   ScrollView,
@@ -6,11 +6,12 @@ import {
   StyleSheet,
   FlatList,
   Animated,
-} from 'react-native';
-import { Text, Input, Icon, Button } from '@rneui/themed';
-import { SafeAreaView } from 'react-native-safe-area-context';
-import { COLORS } from '../constants/colors';
-import { PortfolioChart } from '../components/PortfolioChart';
+} from "react-native";
+import { Text, Input, Icon, Button } from "@rneui/themed";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { COLORS } from "../constants/colors";
+import { PortfolioChart } from "../components/PortfolioChart";
+import { AppHeader } from "../components/AppHeader";
 
 interface Asset {
   symbol: string;
@@ -22,32 +23,35 @@ interface Asset {
 export const AssetsScreen = ({ navigation }: any) => {
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
   const [showSearch, setShowSearch] = useState(false);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [timeRanges] = useState(['1D', '1W', '1M', '3M', '6M']);
-  const [selectedRange, setSelectedRange] = useState('1M');
+  const [searchQuery, setSearchQuery] = useState("");
+  const [timeRanges] = useState(["1D", "1W", "1M", "3M", "6M"]);
+  const [selectedRange, setSelectedRange] = useState("1M");
 
   const topMovers: Asset[] = [
-    { symbol: 'AAPL', name: 'Apple Inc.', price: 189.84, change: 2.3 },
-    { symbol: 'TSLA', name: 'Tesla Inc.', price: 238.45, change: -1.8 },
-    { symbol: 'NVDA', name: 'NVIDIA Corp.', price: 477.76, change: 3.5 },
-    { symbol: 'META', name: 'Meta Platforms', price: 341.49, change: 1.7 },
+    { symbol: "AAPL", name: "Apple Inc.", price: 189.84, change: 2.3 },
+    { symbol: "TSLA", name: "Tesla Inc.", price: 238.45, change: -1.8 },
+    { symbol: "NVDA", name: "NVIDIA Corp.", price: 477.76, change: 3.5 },
+    { symbol: "META", name: "Meta Platforms", price: 341.49, change: 1.7 },
   ];
 
   const renderMoverCard = ({ item }: { item: Asset }) => (
     <TouchableOpacity
       style={[
         styles.moverCard,
-        selectedAsset?.symbol === item.symbol && styles.selectedMoverCard
+        selectedAsset?.symbol === item.symbol && styles.selectedMoverCard,
       ]}
       onPress={() => setSelectedAsset(item)}
     >
       <Text style={styles.symbolText}>{item.symbol}</Text>
       <Text style={styles.priceText}>${item.price}</Text>
-      <Text style={[
-        styles.changeText,
-        { color: item.change >= 0 ? '#4CAF50' : '#FF5252' }
-      ]}>
-        {item.change > 0 ? '+' : ''}{item.change}%
+      <Text
+        style={[
+          styles.changeText,
+          { color: item.change >= 0 ? "#4CAF50" : "#FF5252" },
+        ]}
+      >
+        {item.change > 0 ? "+" : ""}
+        {item.change}%
       </Text>
     </TouchableOpacity>
   );
@@ -62,87 +66,75 @@ export const AssetsScreen = ({ navigation }: any) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <ScrollView
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-      >
-        {/* Header */}
-        <View style={styles.header}>
-          <Text style={styles.title}>ASSETS</Text>
-          <TouchableOpacity onPress={handleSearch}>
-            <Icon name="search" type="feather" color={COLORS.textWhite} size={24} />
-          </TouchableOpacity>
-        </View>
-
-        {/* Top Movers */}
+      <AppHeader title="Assets" />
+      <ScrollView style={styles.scrollView}>
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Top Market Movers</Text>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Top Market Movers</Text>
+            <TouchableOpacity onPress={handleSearch}>
+              <Icon
+                name="search"
+                type="feather"
+                color={COLORS.textWhite}
+                size={24}
+              />
+            </TouchableOpacity>
+          </View>
+
           <FlatList
             data={topMovers}
             renderItem={renderMoverCard}
-            keyExtractor={item => item.symbol}
+            keyExtractor={(item) => item.symbol}
             horizontal
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.moversList}
           />
         </View>
 
-        {/* Selected Asset View */}
         {selectedAsset && (
-          <>
-            <View style={styles.section}>
-              <View style={styles.assetHeader}>
-                <View>
-                  <Text style={styles.assetSymbol}>{selectedAsset.symbol}</Text>
-                  <Text style={styles.assetName}>{selectedAsset.name}</Text>
-                </View>
-                <View style={styles.priceContainer}>
-                  <Text style={styles.assetPrice}>${selectedAsset.price}</Text>
-                  <Text style={[
+          <View style={styles.section}>
+            <View style={styles.assetHeader}>
+              <View>
+                <Text style={styles.assetSymbol}>{selectedAsset.symbol}</Text>
+                <Text style={styles.assetName}>{selectedAsset.name}</Text>
+              </View>
+              <View style={styles.priceContainer}>
+                <Text style={styles.assetPrice}>${selectedAsset.price}</Text>
+                <Text
+                  style={[
                     styles.assetChange,
-                    { color: selectedAsset.change >= 0 ? '#4CAF50' : '#FF5252' }
-                  ]}>
-                    {selectedAsset.change > 0 ? '+' : ''}{selectedAsset.change}%
-                  </Text>
-                </View>
+                    {
+                      color: selectedAsset.change >= 0 ? "#4CAF50" : "#FF5252",
+                    },
+                  ]}
+                >
+                  {selectedAsset.change > 0 ? "+" : ""}
+                  {selectedAsset.change}%
+                </Text>
               </View>
+            </View>
 
-              <PortfolioChart
-                data={{
-                  value: selectedAsset.price,
-                  change: selectedAsset.change,
-                  timeRanges,
-                  selectedRange,
-                  onRangeSelect: setSelectedRange,
-                }}
+            <PortfolioChart
+              data={{
+                value: selectedAsset.price,
+                change: selectedAsset.change,
+                timeRanges,
+                selectedRange,
+                onRangeSelect: setSelectedRange,
+              }}
+            />
+
+            <View style={styles.tradeButtons}>
+              <Button
+                title="Buy"
+                buttonStyle={[styles.tradeButton, styles.buyButton]}
               />
-
-              <View style={styles.tradeButtons}>
-                <Button
-                  title="Buy"
-                  buttonStyle={[styles.tradeButton, styles.buyButton]}
-                  onPress={handleTrade}
-                />
-                <Button
-                  title="Sell"
-                  buttonStyle={[styles.tradeButton, styles.sellButton]}
-                  onPress={handleTrade}
-                />
-              </View>
+              <Button
+                title="Sell"
+                buttonStyle={[styles.tradeButton, styles.sellButton]}
+              />
             </View>
-
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>Asset Information</Text>
-              <Text style={styles.description}>
-                {selectedAsset.name} is a leading technology company...
-              </Text>
-            </View>
-
-            <View style={styles.section}>
-              <Text style={styles.sectionTitle}>News</Text>
-              {/* TODO: Add news items */}
-            </View>
-          </>
+          </View>
         )}
       </ScrollView>
     </SafeAreaView>
@@ -157,51 +149,43 @@ const styles = StyleSheet.create({
   scrollView: {
     flex: 1,
   },
-  scrollContent: {
-    paddingBottom: 90, // Add padding to account for the navigation bar
-  },
-  header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: COLORS.textWhite,
-  },
   section: {
     padding: 20,
   },
+  sectionHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    marginBottom: 15,
+  },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: '600',
+    fontWeight: "600",
     color: COLORS.textWhite,
-    marginBottom: 15,
+  },
+  searchInput: {
+    marginHorizontal: 20,
+    marginTop: 10,
   },
   moversList: {
     paddingRight: 20,
   },
   moverCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
     borderRadius: 12,
     padding: 15,
     marginRight: 12,
     width: 120,
   },
   selectedMoverCard: {
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    backgroundColor: "rgba(255, 255, 255, 0.2)",
     borderColor: COLORS.primary,
     borderWidth: 1,
   },
   symbolText: {
     color: COLORS.textWhite,
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   priceText: {
     color: COLORS.textWhite,
@@ -210,18 +194,18 @@ const styles = StyleSheet.create({
   },
   changeText: {
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: "600",
     marginTop: 4,
   },
   assetHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'flex-start',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "flex-start",
     marginBottom: 20,
   },
   assetSymbol: {
     fontSize: 24,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     color: COLORS.textWhite,
   },
   assetName: {
@@ -230,37 +214,32 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   priceContainer: {
-    alignItems: 'flex-end',
+    alignItems: "flex-end",
   },
   assetPrice: {
     fontSize: 24,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     color: COLORS.textWhite,
   },
   assetChange: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
     marginTop: 4,
   },
   tradeButtons: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    justifyContent: "space-between",
     marginTop: 20,
   },
   tradeButton: {
-    width: '48%',
+    width: "48%",
     borderRadius: 8,
     paddingVertical: 12,
   },
   buyButton: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: "#4CAF50",
   },
   sellButton: {
-    backgroundColor: '#FF5252',
+    backgroundColor: "#FF5252",
   },
-  description: {
-    color: COLORS.textSecondary,
-    fontSize: 14,
-    lineHeight: 20,
-  },
-}); 
+});

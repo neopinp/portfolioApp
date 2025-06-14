@@ -29,7 +29,6 @@ const RiskToleranceStep = ({
     <Text h4 style={styles.stepTitle}>
       What's your risk tolerance?
     </Text>
-
     <Text style={styles.description}>Passive to Aggressive</Text>
     <View style={styles.sliderContainer}>
       <Slider
@@ -171,8 +170,17 @@ export const OnboardingScreen = () => {
       setCurrentStep((prev) => prev + 1);
     } else {
       try {
+        // Process answers to ensure correct types
+        const processedAnswers = {
+          ...answers,
+          riskTolerance: typeof answers.riskTolerance === 'number' 
+            ? answers.riskTolerance 
+            : parseInt(answers.riskTolerance as unknown as string) || 5,
+          initialInvestment: parseFloat(answers.initialInvestment) || 1000
+        };
+        
         // Save onboarding answers
-        await storage.setItem(STORAGE_KEYS.USER_PREFERENCES, answers);
+        await storage.setItem(STORAGE_KEYS.USER_PREFERENCES, processedAnswers);
         // Complete onboarding
         await completeOnboarding();
         // Navigation will be handled by the Navigation component in App.tsx

@@ -29,9 +29,15 @@ export const verifyToken: RequestHandler = (
 
     try {
         const decoded = jwt.verify(token, authConfig.jwtSecret) as JwtUser;
+        // Ensure the decoded token has the required fields
+        if (!decoded.id || !decoded.email) {
+            res.status(401).json({ error: 'Invalid token payload' });
+            return;
+        }
         req.user = decoded;
         next();
     } catch (err) {
+        console.error('Token verification error:', err);
         res.status(401).json({ error: 'Invalid token' });
     }
 };

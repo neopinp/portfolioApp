@@ -1,4 +1,4 @@
-import React, { useState, useRef } from "react";
+import React, { useState, useRef, useEffect } from "react";
 import {
   View,
   ScrollView,
@@ -6,22 +6,31 @@ import {
   FlatList,
   TouchableOpacity,
   Animated,
+  ActivityIndicator,
 } from "react-native";
 import { Text, Icon, Overlay } from "@rneui/themed";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { COLORS } from "../constants/colors";
 import { PortfolioCard } from "../components/PortfolioCard";
-import { StatsBar } from "../components/StatsBar";
-import { HoldingItem } from "../components/HoldingItem";
 import { PortfolioChart } from "../components/PortfolioChart";
+import { AppHeader } from "../components/AppHeader";
 import { useAuth } from "../contexts/AuthContext";
+import { api } from "../services/api";
+import { storage, STORAGE_KEYS } from "../utils/storage";
 
 interface Portfolio {
   id: number;
   name: string;
   value: number;
   riskScore: number;
-  change?: number;
+  change: number;
+  holdings?: any[];
+}
+
+interface OnboardingData {
+  riskTolerance: number;
+  investmentGoals: string;
+  initialInvestment: number;
 }
 
 interface Asset {
@@ -34,14 +43,14 @@ type PortfolioOrNew = Portfolio | { id: number };
 
 export const DashboardScreen = ({ navigation }: any) => {
   const { logout, user } = useAuth();
-  const [portfolios] = useState<Portfolio[]>([
-    { id: 1, name: "Portfolio Name", value: 45678.9, riskScore: 8, change: 8.5 },
-    { id: 2, name: "Tech Growth", value: 32150.75, riskScore: 7, change: -2.3 },
-    { id: 3, name: "Conservative", value: 15890.25, riskScore: 4, change: 1.2 },
-  ]);
-  const [selectedPortfolio, setSelectedPortfolio] = useState<Portfolio>(portfolios[0]);
-  const [timeRanges] = useState(['1D', '1W', '1M', '3M', '6M']);
-  const [selectedRange, setSelectedRange] = useState('1M');
+  const [portfolios, setPortfolios] = useState<Portfolio[]>([]);
+  const [selectedPortfolio, setSelectedPortfolio] = useState<Portfolio | null>(
+    null
+  );
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [timeRanges] = useState(["1D", "1W", "1M", "3M", "6M"]);
+  const [selectedRange, setSelectedRange] = useState("1M");
 
   const [showRiskDetails, setShowRiskDetails] = useState(false);
   const [showTooltip, setShowTooltip] = useState(false);
@@ -56,15 +65,109 @@ export const DashboardScreen = ({ navigation }: any) => {
     { symbol: "AMZN", fullName: "Amazon.com Inc.", riskScore: 6 },
   ]);
 
+  useEffect(() => {
+    loadPortfolios();
+  }, []);
+
+  const createInitialPortfolio = async () => {
+    try {
+      // Get user-specific onboarding data
+      const onboardingData = await storage.getItem<OnboardingData>(
+        STORAGE_KEYS.USER_PREFERENCES,
+        user?.id
+      );
+
+      if (!onboardingData) {
+        setError("No onboarding data found");
+        return;
+      }
+
+      const portfolioName =
+        onboardingData.investmentGoals === "growth"
+          ? "Retirement Riches"
+          : onboardingData.investmentGoals === "income"
+            ? "Regular Riches"
+            : "Right Now Riches";
+
+      // Ensure initialInvestment is a number
+      const initialInvestment =
+        typeof onboardingData.initialInvestment === "number"
+          ? onboardingData.initialInvestment
+          : parseFloat(onboardingData.initialInvestment as unknown as string) ||
+            1000;
+
+      // Ensure riskTolerance is a number
+      const riskTolerance =
+        typeof onboardingData.riskTolerance === "number"
+          ? onboardingData.riskTolerance
+          : parseInt(onboardingData.riskTolerance as unknown as string) || 5;
+
+      const newPortfolio = await api.portfolios.create({
+        name: portfolioName,
+        starting_balance: initialInvestment,
+        risk_score: riskTolerance,
+      });
+
+      // Transform the response to match our Portfolio interface
+      const transformedPortfolio: Portfolio = {
+        id: newPortfolio.id,
+        name: newPortfolio.name || "",
+        value: Number(newPortfolio.starting_balance) || 0,
+        riskScore: newPortfolio.risk_score || 5,
+        change: 0,
+        holdings: newPortfolio.holdings || [],
+      };
+
+      setPortfolios([transformedPortfolio]);
+      setSelectedPortfolio(transformedPortfolio);
+    } catch (err) {
+      console.error("Error creating initial portfolio:", err);
+      setError("Failed to create initial portfolio");
+      throw err;
+    }
+  };
+
+  // refreshes portfolios
+  const loadPortfolios = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      const response = await api.portfolios.getAll();
+
+      if (response.length === 0) {
+        // Create initial portfolio if none exist
+        await createInitialPortfolio();
+      } else {
+        // Transform the response to match our Portfolio interface
+        const transformedPortfolios = response.map((portfolio: any) => ({
+          id: portfolio.id,
+          name: portfolio.name || "",
+          value: Number(portfolio.starting_balance) || 0,
+          riskScore: portfolio.risk_score || 5,
+          change: 0,
+          holdings: portfolio.holdings || [],
+        }));
+
+        setPortfolios(transformedPortfolios);
+        setSelectedPortfolio(transformedPortfolios[0]);
+      }
+    } catch (err) {
+      console.error("Error loading portfolios:", err);
+      setError("Failed to load portfolios");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   const handlePortfolioPress = (portfolioId: number) => {
-    const portfolio = portfolios.find(p => p.id === portfolioId);
+    const portfolio = portfolios.find((p) => p.id === portfolioId);
     if (portfolio) {
       setSelectedPortfolio(portfolio);
     }
   };
 
   const handleChartPress = () => {
-    navigation.navigate("Portfolio", { portfolioId: selectedPortfolio.id });
+    navigation.navigate("Portfolio", { portfolioId: selectedPortfolio?.id });
   };
 
   const handleCreatePortfolio = () => {
@@ -72,12 +175,12 @@ export const DashboardScreen = ({ navigation }: any) => {
   };
 
   const handleAddAsset = () => {
-    navigation.navigate('Assets');
+    navigation.navigate("Assets");
   };
 
   const flipCard = () => {
     setShowRiskDetails(!showRiskDetails);
-    
+
     // Flip animation
     Animated.spring(flipAnimation, {
       toValue: showRiskDetails ? 0 : 180,
@@ -112,6 +215,27 @@ export const DashboardScreen = ({ navigation }: any) => {
     transform: [{ rotateY: backInterpolate }],
   };
 
+  const renderEmptyState = () => (
+    <View style={styles.emptyStateContainer}>
+      <Icon
+        name="folder-plus"
+        type="feather"
+        size={48}
+        color={COLORS.textSecondary}
+      />
+      <Text style={styles.emptyStateTitle}>Create Your First Portfolio</Text>
+      <Text style={styles.emptyStateDescription}>
+        Get started by creating a portfolio with your investment preferences
+      </Text>
+      <TouchableOpacity
+        style={styles.createFirstPortfolioButton}
+        onPress={handleCreatePortfolio}
+      >
+        <Text style={styles.createFirstPortfolioText}>Create Portfolio</Text>
+      </TouchableOpacity>
+    </View>
+  );
+
   const renderPortfolioItem = ({ item }: { item: PortfolioOrNew }) => {
     if ("name" in item) {
       return (
@@ -121,7 +245,7 @@ export const DashboardScreen = ({ navigation }: any) => {
           riskScore={item.riskScore}
           change={item.change}
           onPress={() => handlePortfolioPress(item.id)}
-          isSelected={selectedPortfolio.id === item.id}
+          isSelected={selectedPortfolio?.id === item.id}
         />
       );
     }
@@ -137,35 +261,49 @@ export const DashboardScreen = ({ navigation }: any) => {
   };
 
   const chartData = {
-    value: selectedPortfolio.value,
-    change: selectedPortfolio.change || 0,
+    value: selectedPortfolio?.value || 0,
+    change: selectedPortfolio?.change || 0,
     timeRanges,
     selectedRange,
     onRangeSelect: setSelectedRange,
   };
 
-  return (
-    <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>STOX</Text>
-        <TouchableOpacity 
-          style={styles.logoutButton}
-          onPress={logout}
-        >
-          <Icon
-            name="log-out"
-            type="feather"
-            size={24}
-            color={COLORS.textSecondary}
-          />
+  if (isLoading) {
+    return (
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color={COLORS.textPink} />
+      </View>
+    );
+  }
+
+  if (error) {
+    return (
+      <View style={styles.errorContainer}>
+        <Text style={styles.errorText}>{error}</Text>
+        <TouchableOpacity style={styles.retryButton} onPress={loadPortfolios}>
+          <Text style={styles.retryButtonText}>Retry</Text>
         </TouchableOpacity>
       </View>
+    );
+  }
 
+  if (portfolios.length === 0) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <AppHeader />
+        {renderEmptyState()}
+      </SafeAreaView>
+    );
+  }
+
+  return (
+    <SafeAreaView style={styles.container}>
+      <AppHeader />
       <View style={styles.welcomeContainer}>
-        <Text style={styles.welcomeText}>@{user?.username || 'User'}</Text>
+        <Text style={styles.welcomeText}>@{user?.username || "User"}</Text>
       </View>
 
-      <ScrollView 
+      <ScrollView
         ref={scrollViewRef}
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
@@ -184,13 +322,13 @@ export const DashboardScreen = ({ navigation }: any) => {
         </View>
 
         {/* Portfolio Chart Section */}
-        <TouchableOpacity 
+        <TouchableOpacity
           style={styles.section}
           onPress={handleChartPress}
           activeOpacity={0.8}
         >
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>{selectedPortfolio.name}</Text>
+            <Text style={styles.sectionTitle}>{selectedPortfolio?.name}</Text>
             <Text style={styles.tapHint}>Tap to view</Text>
           </View>
           <PortfolioChart data={chartData} />
@@ -214,16 +352,16 @@ export const DashboardScreen = ({ navigation }: any) => {
               </TouchableOpacity>
             </View>
           </View>
-          
-          <Animated.View 
+
+          <Animated.View
             style={[
               styles.riskContainer,
               {
-                height: heightAnimation
-              }
+                height: heightAnimation,
+              },
             ]}
           >
-            <TouchableOpacity 
+            <TouchableOpacity
               onPress={flipCard}
               activeOpacity={0.9}
               style={styles.cardContainer}
@@ -343,9 +481,9 @@ const styles = StyleSheet.create({
     paddingBottom: 90, // Add padding to account for the navigation bar
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     paddingHorizontal: 20,
     paddingTop: 20,
   },
@@ -526,5 +664,65 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: COLORS.textSecondary,
     opacity: 0.8,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: COLORS.deepPurpleBackground,
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: COLORS.deepPurpleBackground,
+    padding: 20,
+  },
+  errorText: {
+    color: COLORS.coral,
+    fontSize: 16,
+    textAlign: "center",
+    marginBottom: 20,
+  },
+  retryButton: {
+    backgroundColor: COLORS.textPink,
+    paddingHorizontal: 20,
+    paddingVertical: 10,
+    borderRadius: 8,
+  },
+  retryButtonText: {
+    color: COLORS.textWhite,
+    fontSize: 16,
+    fontWeight: "600",
+  },
+  emptyStateContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  emptyStateTitle: {
+    color: COLORS.textWhite,
+    fontSize: 24,
+    fontWeight: "600",
+    marginTop: 20,
+    marginBottom: 10,
+  },
+  emptyStateDescription: {
+    color: COLORS.textSecondary,
+    fontSize: 16,
+    textAlign: "center",
+    marginBottom: 30,
+  },
+  createFirstPortfolioButton: {
+    backgroundColor: COLORS.textPink,
+    paddingHorizontal: 30,
+    paddingVertical: 15,
+    borderRadius: 25,
+  },
+  createFirstPortfolioText: {
+    color: COLORS.textWhite,
+    fontSize: 18,
+    fontWeight: "600",
   },
 });

@@ -5,6 +5,8 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { COLORS } from "../constants/colors";
 import { PortfolioChart } from "../components/PortfolioChart";
 import { HoldingItem } from "../components/HoldingItem";
+import { AppHeader } from "../components/AppHeader";
+import { Icon } from "@rneui/themed";
 
 interface Holding {
   id: number;
@@ -58,50 +60,26 @@ export const PortfolioScreen = ({ route, navigation }: any) => {
     onRangeSelect: setSelectedRange,
   };
 
+  const handleAddHolding = () => {
+    // Implement the logic to add a new holding
+  };
+
   return (
     <SafeAreaView style={styles.container}>
-      <View style={styles.header}>
-        <Text style={styles.title}>{portfolio.name}</Text>
-      </View>
-
-      <ScrollView 
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-      >
-        {/* Chart Section */}
+      <AppHeader title={portfolio.name} />
+      <ScrollView style={styles.scrollView}>
         <View style={styles.section}>
           <PortfolioChart data={chartData} />
         </View>
 
-        {/* Top Movers Section */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Top Movers</Text>
-          <ScrollView
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            style={styles.moversScroll}
-          >
-            {[...Array(4)].map((_, index) => (
-              <View key={index} style={styles.moverCard}>
-                <Text style={styles.moverSymbol}>SYM</Text>
-                <Text style={styles.moverValue}>$</Text>
-                <Text style={styles.moverChange}>%</Text>
-              </View>
-            ))}
-          </ScrollView>
-        </View>
-
-        {/* Holdings Section */}
-        <View style={styles.section}>
-          <View style={styles.holdingsHeader}>
-            <Text style={styles.sectionTitle}>All Assets</Text>
-            <TouchableOpacity
-              onPress={() => navigation.navigate("AddAsset")}
-              style={styles.addAssetButton}
-            >
-              <Text style={styles.addAsset}>+ asset</Text>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>Holdings</Text>
+            <TouchableOpacity onPress={handleAddHolding}>
+              <Icon name="plus" type="feather" color={COLORS.textSecondary} />
             </TouchableOpacity>
           </View>
+
           {portfolio.holdings.map((holding) => (
             <HoldingItem
               key={holding.id}
@@ -132,31 +110,19 @@ const styles = StyleSheet.create({
   scrollView: {
     flex: 1,
   },
-  scrollContent: {
-    paddingBottom: 90, // Add padding to account for the navigation bar
-  },
-  header: {
-    paddingHorizontal: 20,
-    paddingVertical: 15,
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(255, 255, 255, 0.1)",
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: COLORS.textWhite,
-  },
   section: {
     padding: 20,
   },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 15,
+  },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: "600",
+    fontWeight: '600',
     color: COLORS.textWhite,
-    marginBottom: 15,
   },
   moversScroll: {
     marginHorizontal: -20,

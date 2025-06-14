@@ -12,6 +12,7 @@ import { OnboardingScreen } from "./src/screens/OnboardingScreen";
 import { DashboardScreen } from "./src/screens/DashboardScreen";
 import { PortfolioScreen } from "./src/screens/PortfolioScreen";
 import { AssetsScreen } from "./src/screens/AssetsScreen";
+import { CreatePortfolioScreen } from "./src/screens/CreatePortfolioScreen";
 import { BottomNav } from "./src/components/BottomNav";
 
 const Stack = createNativeStackNavigator();
@@ -87,6 +88,16 @@ function Navigation() {
                 presentation: "modal",
                 headerShown: true,
                 headerTitle: "",
+                headerTransparent: true,
+              }}
+            />
+            <Stack.Screen
+              name="CreatePortfolio"
+              component={CreatePortfolioScreen}
+              options={{
+                presentation: "modal",
+                headerShown: true,
+                headerTitle: "Create Portfolio",
                 headerTransparent: true,
               }}
             />

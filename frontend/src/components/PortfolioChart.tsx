@@ -16,10 +16,13 @@ interface PortfolioChartProps {
 }
 
 export const PortfolioChart = ({ data }: PortfolioChartProps) => {
+  // Format value safely
+  const formattedValue = typeof data.value === 'number' ? data.value.toLocaleString() : '0';
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.value}>${data.value.toLocaleString()}</Text>
+        <Text style={styles.value}>${formattedValue}</Text>
         <Text style={[styles.change, { color: data.change >= 0 ? '#4CAF50' : '#FF5252' }]}>
           {data.change >= 0 ? '+' : ''}{data.change}%
         </Text>
