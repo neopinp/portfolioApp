@@ -17,7 +17,6 @@ import { AppHeader } from "../components/AppHeader";
 import { useAuth } from "../contexts/AuthContext";
 import { api } from "../services/api";
 import { storage, STORAGE_KEYS } from "../utils/storage";
-import { useFocusEffect } from "@react-navigation/native";
 
 interface Portfolio {
   id: number;
@@ -70,13 +69,6 @@ export const DashboardScreen = ({ navigation }: any) => {
   useEffect(() => {
     loadPortfolios();
   }, []);
-
-  // Reload portfolios when the screen comes into focus (e.g., after creating a portfolio)
-  useFocusEffect(
-    React.useCallback(() => {
-      loadPortfolios();
-    }, [])
-  );
 
   const createInitialPortfolio = async () => {
     try {
