@@ -65,7 +65,7 @@ export const CreatePortfolioScreen = ({
         starting_balance: parsedInitialValue,
         risk_score: riskScore,
       });
-
+      
       navigation.goBack();
     } catch (err) {
       console.error("Error creating portfolio:", err);

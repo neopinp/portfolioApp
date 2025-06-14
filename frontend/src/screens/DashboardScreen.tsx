@@ -52,6 +52,12 @@ export const DashboardScreen = ({ navigation }: any) => {
   const [timeRanges] = useState(["1D", "1W", "1M", "3M", "6M"]);
   const [selectedRange, setSelectedRange] = useState("1M");
 
+  // Track if we've already created an initial portfolio in this session
+  const [hasCreatedInitialPortfolio, setHasCreatedInitialPortfolio] = useState(false);
+
+  // Use a ref to track if we're currently loading to prevent infinite loops
+  const isLoadingRef = useRef(false);
+
   const [showRiskDetails, setShowRiskDetails] = useState(false);
   const [showTooltip, setShowTooltip] = useState(false);
   const [flipAnimation] = useState(new Animated.Value(0));
@@ -68,7 +74,18 @@ export const DashboardScreen = ({ navigation }: any) => {
   // Initial load of portfolios
   useEffect(() => {
     loadPortfolios();
-  }, []);
+    
+    // Add navigation listener to reload portfolios when returning to this screen
+    const unsubscribe = navigation.addListener('focus', () => {
+      // Check if we're not already loading to avoid duplicate calls
+      if (!isLoadingRef.current) {
+        loadPortfolios();
+      }
+    });
+    
+    // Cleanup listener on unmount
+    return unsubscribe;
+  }, [navigation]);
 
   const createInitialPortfolio = async () => {
     try {
@@ -121,6 +138,7 @@ export const DashboardScreen = ({ navigation }: any) => {
 
       setPortfolios([transformedPortfolio]);
       setSelectedPortfolio(transformedPortfolio);
+      setHasCreatedInitialPortfolio(true);
     } catch (err) {
       console.error("Error creating initial portfolio:", err);
       setError("Failed to create initial portfolio");
@@ -130,13 +148,17 @@ export const DashboardScreen = ({ navigation }: any) => {
 
   // refreshes portfolios
   const loadPortfolios = async () => {
+    // Prevent multiple simultaneous calls
+    if (isLoadingRef.current) return;
+    
     try {
+      isLoadingRef.current = true;
       setIsLoading(true);
       setError(null);
       const response = await api.portfolios.getAll();
 
-      if (response.length === 0) {
-        // Create initial portfolio if none exist
+      if (response.length === 0 && !hasCreatedInitialPortfolio) {
+        // Create initial portfolio if none exist and we haven't already created one in this session
         await createInitialPortfolio();
       } else {
         // Transform the response to match our Portfolio interface
@@ -157,6 +179,7 @@ export const DashboardScreen = ({ navigation }: any) => {
       setError("Failed to load portfolios");
     } finally {
       setIsLoading(false);
+      isLoadingRef.current = false;
     }
   };
 
