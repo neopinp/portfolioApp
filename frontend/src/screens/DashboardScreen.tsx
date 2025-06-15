@@ -53,7 +53,8 @@ export const DashboardScreen = ({ navigation }: any) => {
   const [selectedRange, setSelectedRange] = useState("1M");
 
   // Track if we've already created an initial portfolio in this session
-  const [hasCreatedInitialPortfolio, setHasCreatedInitialPortfolio] = useState(false);
+  const [hasCreatedInitialPortfolio, setHasCreatedInitialPortfolio] =
+    useState(false);
 
   // Use a ref to track if we're currently loading to prevent infinite loops
   const isLoadingRef = useRef(false);
@@ -74,15 +75,15 @@ export const DashboardScreen = ({ navigation }: any) => {
   // Initial load of portfolios
   useEffect(() => {
     loadPortfolios();
-    
+
     // Add navigation listener to reload portfolios when returning to this screen
-    const unsubscribe = navigation.addListener('focus', () => {
+    const unsubscribe = navigation.addListener("focus", () => {
       // Check if we're not already loading to avoid duplicate calls
       if (!isLoadingRef.current) {
         loadPortfolios();
       }
     });
-    
+
     // Cleanup listener on unmount
     return unsubscribe;
   }, [navigation]);
@@ -126,7 +127,7 @@ export const DashboardScreen = ({ navigation }: any) => {
         risk_score: riskTolerance,
       });
 
-      // Transform the response to match our Portfolio interface
+      // Transform portfolio so that it can be passed 
       const transformedPortfolio: Portfolio = {
         id: newPortfolio.id,
         name: newPortfolio.name || "",
@@ -148,11 +149,11 @@ export const DashboardScreen = ({ navigation }: any) => {
 
   // refreshes portfolios
   const loadPortfolios = async () => {
-    // Prevent multiple simultaneous calls
+    // if already loading, return
     if (isLoadingRef.current) return;
-    
+
     try {
-      isLoadingRef.current = true;
+      isLoadingRef.current = true; // loading in-progress
       setIsLoading(true);
       setError(null);
       const response = await api.portfolios.getAll();
