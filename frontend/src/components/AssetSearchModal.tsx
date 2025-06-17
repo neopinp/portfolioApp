@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState } from "react";
 import {
   View,
   TouchableOpacity,
@@ -6,15 +6,10 @@ import {
   FlatList,
   Modal,
   ScrollView,
-} from 'react-native';
-import { Text, Input, Icon } from '@rneui/themed';
-import { COLORS } from '../constants/colors';
-
-interface Asset {
-  symbol: string;
-  name: string;
-  type: string;
-}
+} from "react-native";
+import { Text, Input, Icon } from "@rneui/themed";
+import { COLORS } from "../constants/colors";
+import { Asset } from "../types";
 
 interface AssetSearchModalProps {
   visible: boolean;
@@ -27,21 +22,105 @@ export const AssetSearchModal: React.FC<AssetSearchModalProps> = ({
   onClose,
   onSelectAsset,
 }) => {
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedCategory, setSelectedCategory] = useState('All');
+  const [searchQuery, setSearchQuery] = useState("");
+  const [selectedCategory, setSelectedCategory] = useState("All");
 
-  const categories = ['All', 'Stocks', 'Crypto', 'ETFs', 'Forex'];
-  
+  const categories = ["All", "Stocks", "Crypto", "ETFs", "Forex"];
+
   const recentSearches: Asset[] = [
-    { symbol: 'AAPL', name: 'Apple Inc.', type: 'Stocks' },
-    { symbol: 'BTC', name: 'Bitcoin', type: 'Crypto' },
-    { symbol: 'VOO', name: 'Vanguard S&P 500 ETF', type: 'ETFs' },
+    {
+      symbol: "AAPL",
+      name: "Apple Inc.",
+      fullName: "Apple Inc.",
+      price: 189.84,
+      change: 2.3,
+      riskScore: 6,
+      type: "Stocks",
+    },
+    {
+      symbol: "BTC",
+      name: "Bitcoin",
+      fullName: "Bitcoin",
+      price: 68245.5,
+      change: -1.2,
+      riskScore: 9,
+      type: "Crypto",
+    },
+    {
+      symbol: "VOO",
+      name: "Vanguard S&P 500 ETF",
+      fullName: "Vanguard S&P 500 ETF",
+      price: 458.72,
+      change: 0.8,
+      riskScore: 5,
+      type: "ETFs",
+    },
   ];
 
   const popularAssets: Asset[] = [
-    { symbol: 'MSFT', name: 'Microsoft Corporation', type: 'Stocks' },
-    { symbol: 'ETH', name: 'Ethereum', type: 'Crypto' },
-    { symbol: 'QQQ', name: 'Invesco QQQ Trust', type: 'ETFs' },
+    {
+      symbol: "MSFT",
+      name: "Microsoft Corporation",
+      fullName: "Microsoft Corporation",
+      price: 417.32,
+      change: 1.5,
+      riskScore: 5,
+      type: "Stocks",
+    },
+    {
+      symbol: "ETH",
+      name: "Ethereum",
+      fullName: "Ethereum",
+      price: 3456.78,
+      change: -0.5,
+      riskScore: 8,
+      type: "Crypto",
+    },
+    {
+      symbol: "QQQ",
+      name: "Invesco QQQ Trust",
+      fullName: "Invesco QQQ Trust",
+      price: 438.29,
+      change: 1.2,
+      riskScore: 6,
+      type: "ETFs",
+    },
+    {
+      symbol: "NVDA",
+      name: "NVIDIA Corporation",
+      fullName: "NVIDIA Corporation",
+      price: 477.76,
+      change: 3.5,
+      riskScore: 7,
+      type: "Stocks",
+    },
+    {
+      symbol: "AMZN",
+      name: "Amazon.com Inc.",
+      fullName: "Amazon.com Inc.",
+      price: 178.15,
+      change: 0.7,
+      riskScore: 6,
+      type: "Stocks",
+    },
+    {
+      symbol: "TSLA",
+      name: "Tesla Inc.",
+      fullName: "Tesla Inc.",
+      price: 238.45,
+      change: -1.8,
+      riskScore: 8,
+      type: "Stocks",
+    },
+    {
+      symbol: "META",
+      name: "Meta Platforms",
+      fullName: "Meta Platforms",
+      price: 341.49,
+      change: 1.7,
+      riskScore: 6,
+      type: "Stocks",
+    },
   ];
 
   const renderAssetItem = ({ item }: { item: Asset }) => (
@@ -54,11 +133,46 @@ export const AssetSearchModal: React.FC<AssetSearchModalProps> = ({
     >
       <View>
         <Text style={styles.assetSymbol}>{item.symbol}</Text>
-        <Text style={styles.assetName}>{item.name}</Text>
+        <Text style={styles.assetName}>{item.fullName || item.name}</Text>
       </View>
-      <Text style={styles.assetType}>{item.type}</Text>
+      <View style={styles.assetPriceContainer}>
+        <Text style={styles.assetPrice}>
+          ${item.price?.toFixed(2) || "0.00"}
+        </Text>
+        <Text
+          style={[
+            styles.assetChange,
+            { color: (item.change || 0) >= 0 ? "#4CAF50" : "#FF5252" },
+          ]}
+        >
+          {(item.change || 0) >= 0 ? "+" : ""}
+          {item.change?.toFixed(2) || "0.00"}%
+        </Text>
+      </View>
     </TouchableOpacity>
   );
+
+  // Filter assets based on search query and category
+  const filteredAssets = [...recentSearches, ...popularAssets]
+    .filter((asset) => {
+      // Filter by search query
+      if (searchQuery) {
+        const query = searchQuery.toLowerCase();
+        return (
+          asset.symbol.toLowerCase().includes(query) ||
+          asset.name.toLowerCase().includes(query) ||
+          (asset.fullName && asset.fullName.toLowerCase().includes(query))
+        );
+      }
+      return true;
+    })
+    .filter((asset) => {
+      // Filter by category
+      if (selectedCategory !== "All") {
+        return asset.type === selectedCategory;
+      }
+      return true;
+    });
 
   return (
     <Modal
@@ -85,55 +199,99 @@ export const AssetSearchModal: React.FC<AssetSearchModalProps> = ({
             inputStyle={styles.searchInput}
             containerStyle={styles.searchInputContainer}
             leftIcon={
-              <Icon name="search" type="feather" color={COLORS.textSecondary} size={20} />
+              <Icon
+                name="search"
+                type="feather"
+                color={COLORS.textSecondary}
+                size={20}
+              />
             }
           />
         </View>
 
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.categoriesContainer}>
-          {categories.map((category) => (
-            <TouchableOpacity
-              key={category}
-              style={[
-                styles.categoryButton,
-                selectedCategory === category && styles.selectedCategory,
-              ]}
-              onPress={() => setSelectedCategory(category)}
-            >
-              <Text style={[
-                styles.categoryText,
-                selectedCategory === category && styles.selectedCategoryText,
-              ]}>
-                {category}
-              </Text>
-            </TouchableOpacity>
-          ))}
-        </ScrollView>
+        {/* Fixed height container for categories */}
+        <View style={styles.categoriesWrapper}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.categoriesContentContainer}
+          >
+            {categories.map((category) => (
+              <TouchableOpacity
+                key={category}
+                style={[
+                  styles.categoryButton,
+                  selectedCategory === category && styles.selectedCategory,
+                ]}
+                onPress={() => setSelectedCategory(category)}
+              >
+                <Text
+                  style={[
+                    styles.categoryText,
+                    selectedCategory === category && styles.selectedCategoryText,
+                  ]}
+                >
+                  {category}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </ScrollView>
+        </View>
+        
+        {/* Divider */}
+        <View style={styles.divider} />
 
         <ScrollView>
-          {!searchQuery && (
-            <>
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Recent Searches</Text>
-                {recentSearches.map((asset) => (
+          {searchQuery ? (
+            // Show search results
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Search Results</Text>
+              {filteredAssets.length > 0 ? (
+                filteredAssets.map((asset) => (
                   <View key={asset.symbol}>
                     {renderAssetItem({ item: asset })}
                   </View>
-                ))}
+                ))
+              ) : (
+                <Text style={styles.noResultsText}>
+                  No assets found matching "{searchQuery}"
+                </Text>
+              )}
+            </View>
+          ) : (
+            // Show recent and popular when not searching
+            <>
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Recent Searches</Text>
+                {recentSearches
+                  .filter(
+                    (asset) =>
+                      selectedCategory === "All" ||
+                      asset.type === selectedCategory
+                  )
+                  .map((asset) => (
+                    <View key={asset.symbol}>
+                      {renderAssetItem({ item: asset })}
+                    </View>
+                  ))}
               </View>
 
               <View style={styles.section}>
                 <Text style={styles.sectionTitle}>Popular Assets</Text>
-                {popularAssets.map((asset) => (
-                  <View key={asset.symbol}>
-                    {renderAssetItem({ item: asset })}
-                  </View>
-                ))}
+                {popularAssets
+                  .filter(
+                    (asset) =>
+                      selectedCategory === "All" ||
+                      asset.type === selectedCategory
+                  )
+                  .map((asset) => (
+                    <View key={asset.symbol}>
+                      {renderAssetItem({ item: asset })}
+                    </View>
+                  ))}
               </View>
             </>
           )}
-
-          {/* Search results would go here */}
         </ScrollView>
       </View>
     </Modal>
@@ -146,21 +304,21 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.deepPurpleBackground,
   },
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     padding: 20,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.1)',
+    borderBottomColor: "rgba(255, 255, 255, 0.1)",
   },
   title: {
     fontSize: 18,
-    fontWeight: '600',
+    fontWeight: "600",
     color: COLORS.textWhite,
   },
   searchContainer: {
     padding: 20,
-    paddingBottom: 10,
+    marginBottom: -35
   },
   searchInputContainer: {
     paddingHorizontal: 0,
@@ -169,16 +327,26 @@ const styles = StyleSheet.create({
     color: COLORS.textWhite,
     fontSize: 16,
   },
-  categoriesContainer: {
-    paddingHorizontal: 20,
+  categoriesWrapper: {
+    height: 50,
     marginBottom: 10,
+    paddingHorizontal: 20,
+  },
+  categoriesContentContainer: {
+    alignItems: "center",
+    height: 50,
+    paddingVertical: 5,
   },
   categoryButton: {
     paddingHorizontal: 16,
     paddingVertical: 8,
     borderRadius: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
     marginRight: 8,
+    minWidth: 80,
+    height: 36,
+    justifyContent: "center",
+    alignItems: "center",
   },
   selectedCategory: {
     backgroundColor: COLORS.primary,
@@ -186,7 +354,8 @@ const styles = StyleSheet.create({
   categoryText: {
     color: COLORS.textSecondary,
     fontSize: 14,
-    fontWeight: '600',
+    fontWeight: "600",
+    textAlign: "center",
   },
   selectedCategoryText: {
     color: COLORS.textWhite,
@@ -196,22 +365,22 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
     color: COLORS.textWhite,
     marginBottom: 15,
   },
   assetItem: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     paddingVertical: 12,
     borderBottomWidth: 1,
-    borderBottomColor: 'rgba(255, 255, 255, 0.05)',
+    borderBottomColor: "rgba(255, 255, 255, 0.05)",
   },
   assetSymbol: {
     color: COLORS.textWhite,
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   assetName: {
     color: COLORS.textSecondary,
@@ -222,4 +391,26 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     fontSize: 14,
   },
-}); 
+  assetPriceContainer: {
+    alignItems: "flex-end",
+  },
+  assetPrice: {
+    color: COLORS.textWhite,
+    fontSize: 16,
+    fontWeight: "500",
+  },
+  assetChange: {
+    fontSize: 14,
+    marginTop: 2,
+  },
+  noResultsText: {
+    color: COLORS.textSecondary,
+    fontSize: 16,
+    textAlign: "center",
+    marginTop: 20,
+  },
+  divider: {
+    height: 1,
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+  },
+});
