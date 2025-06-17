@@ -111,9 +111,13 @@ export const api = {
     getAll: (portfolioId: number) =>
       apiRequest(`holdings?portfolioId=${portfolioId}`),
     add: (portfolioId: number, data: any) =>
-      apiRequest("holdings", {
+      apiRequest(`holdings/${portfolioId}`, {
         method: "POST",
-        body: JSON.stringify({ portfolioId, ...data }),
+        body: JSON.stringify({
+          symbol: data.symbol,
+          amount: data.amount || 100,
+          boughtAtPrice: data.boughtAtPrice || 0,
+        }),
       }),
   },
 };

@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, StyleSheet, Dimensions } from 'react-native';
+import { View, StyleSheet, Dimensions, TouchableOpacity } from 'react-native';
 import { Text } from '@rneui/themed';
 import { COLORS } from '../constants/colors';
 
@@ -13,14 +13,15 @@ interface PortfolioChartProps {
     selectedRange: string;
     onRangeSelect: (range: string) => void;
   };
+  onPress?: () => void;
 }
 
-export const PortfolioChart = ({ data }: PortfolioChartProps) => {
+export const PortfolioChart = ({ data, onPress }: PortfolioChartProps) => {
   // Format value safely
   const formattedValue = typeof data.value === 'number' ? data.value.toLocaleString() : '0';
 
-  return (
-    <View style={styles.container}>
+  const ChartContent = () => (
+    <>
       <View style={styles.header}>
         <Text style={styles.value}>${formattedValue}</Text>
         <Text style={[styles.change, { color: data.change >= 0 ? '#4CAF50' : '#FF5252' }]}>
@@ -41,12 +42,31 @@ export const PortfolioChart = ({ data }: PortfolioChartProps) => {
               styles.timeRange,
               range === data.selectedRange && styles.selectedTimeRange,
             ]}
-            onPress={() => data.onRangeSelect(range)}
+            onPress={(e) => {
+              e.stopPropagation(); // Prevent triggering the parent onPress
+              data.onRangeSelect(range);
+            }}
           >
             {range}
           </Text>
         ))}
       </View>
+    </>
+  );
+
+  // If onPress is provided, wrap the chart in a TouchableOpacity
+  if (onPress) {
+    return (
+      <TouchableOpacity style={styles.container} onPress={onPress} activeOpacity={0.7}>
+        <ChartContent />
+      </TouchableOpacity>
+    );
+  }
+
+  // Otherwise, render without TouchableOpacity
+  return (
+    <View style={styles.container}>
+      <ChartContent />
     </View>
   );
 };

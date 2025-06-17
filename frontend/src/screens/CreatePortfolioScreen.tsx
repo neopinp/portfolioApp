@@ -13,6 +13,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { COLORS } from "../constants/colors";
 import { api } from "../services/api";
 import { AppHeader } from "../components/AppHeader";
+import { BottomNavSpacer } from "../components/BottomNavSpacer";
 import { useAuth } from "../contexts/AuthContext";
 
 interface CreatePortfolioScreenProps {
@@ -149,6 +150,8 @@ export const CreatePortfolioScreen = ({
             )}
           </TouchableOpacity>
         </View>
+        
+        <BottomNavSpacer extraSpace={20} />
       </ScrollView>
     </SafeAreaView>
   );

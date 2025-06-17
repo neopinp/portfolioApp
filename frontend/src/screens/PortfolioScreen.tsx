@@ -1,5 +1,11 @@
-import React, { useState } from "react";
-import { View, ScrollView, StyleSheet, TouchableOpacity } from "react-native";
+import React, { useState, useEffect } from "react";
+import {
+  View,
+  ScrollView,
+  StyleSheet,
+  TouchableOpacity,
+  ActivityIndicator,
+} from "react-native";
 import { Text } from "@rneui/themed";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { COLORS } from "../constants/colors";
@@ -8,51 +14,56 @@ import { HoldingItem } from "../components/HoldingItem";
 import { AppHeader } from "../components/AppHeader";
 import { Icon } from "@rneui/themed";
 import { useAuth } from "../contexts/AuthContext";
-
-interface Holding {
-  id: number;
-  symbol: string;
-  fullName: string;
-  value: number;
-  change: number;
-  imageUrl?: string;
-}
+import { Holding, Portfolio as PortfolioType } from "../types";
+import { api } from "../services/api";
+import { BottomNavSpacer } from "../components/BottomNavSpacer";
 
 export const PortfolioScreen = ({ route, navigation }: any) => {
   const { portfolioId } = route.params;
   const { user } = useAuth();
   const [timeRanges] = useState(["1D", "1W", "1M", "3M", "6M"]);
   const [selectedRange, setSelectedRange] = useState("1M");
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  // Mock data - replace with real data from your API
-  const [portfolio] = useState({
-    name: "Portfolio Name",
-    value: 45678.9,
-    change: 8.5,
-    holdings: [
-      {
-        id: 1,
-        symbol: "TSLA",
-        fullName: "Tesla Inc.",
-        value: 15000,
-        change: 6.2,
-      },
-      {
-        id: 2,
-        symbol: "AAPL",
-        fullName: "Apple Inc.",
-        value: 12000,
-        change: 8.0,
-      },
-      {
-        id: 3,
-        symbol: "NVDA",
-        fullName: "NVIDIA Corporation",
-        value: 9000,
-        change: -2.5,
-      },
-    ] as Holding[],
+  // State for the portfolio data
+  const [portfolio, setPortfolio] = useState<{
+    name: string;
+    value: number;
+    change: number;
+    holdings: Holding[];
+  }>({
+    name: "",
+    value: 0,
+    change: 0,
+    holdings: [],
   });
+
+  useEffect(() => {
+    const fetchPortfolioData = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+
+        const response = await api.portfolios.getOne(portfolioId);
+
+        const portfolioData = {
+          name: response.portfolio?.name || "Portfolio",
+          value: Number(response.portfolio?.starting_balance) || 0,
+          change: 0,
+          holdings: response.portfolio?.holdings || [],
+        };
+        setPortfolio(portfolioData);
+      } catch (err) {
+        console.error("Error fetching portfolio:", err);
+        setError("Failed to load portfolio data");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchPortfolioData();
+  }, [portfolioId]);
 
   const chartData = {
     value: portfolio.value,
@@ -63,8 +74,31 @@ export const PortfolioScreen = ({ route, navigation }: any) => {
   };
 
   const handleAddHolding = () => {
-    // Implement the logic to add a new holding
+    // Navigate to Assets screen with the portfolio ID
+    navigation.navigate("Assets", { portfolioId });
   };
+
+  if (loading) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <AppHeader title="Loading..." username={user?.username || "User"} />
+        <View style={styles.loadingContainer}>
+          <ActivityIndicator size="large" color={COLORS.textPink} />
+        </View>
+      </SafeAreaView>
+    );
+  }
+
+  if (error) {
+    return (
+      <SafeAreaView style={styles.container}>
+        <AppHeader title="Error" username={user?.username || "User"} />
+        <View style={styles.errorContainer}>
+          <Text style={styles.errorText}>{error}</Text>
+        </View>
+      </SafeAreaView>
+    );
+  }
 
   return (
     <SafeAreaView style={styles.container}>
@@ -81,24 +115,26 @@ export const PortfolioScreen = ({ route, navigation }: any) => {
               <Icon name="plus" type="feather" color={COLORS.textSecondary} />
             </TouchableOpacity>
           </View>
-
-          {portfolio.holdings.map((holding) => (
-            <HoldingItem
-              key={holding.id}
-              symbol={holding.symbol}
-              fullName={holding.fullName}
-              value={holding.value}
-              change={holding.change}
-              imageUrl={holding.imageUrl}
-            />
-          ))}
+          {portfolio.holdings.length > 0 ? (
+            portfolio.holdings.map((holding) => (
+              <HoldingItem key={holding.id} holding={holding} />
+            ))
+          ) : (
+            <Text style={styles.emptyText}>
+              No holdings yet. Add some assets to get started!
+            </Text>
+          )}
         </View>
 
         {/* News Section */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>News about this Portfolio</Text>
           {/* Add news items here */}
+          <Text style={styles.emptyText}>No news available at this time.</Text>
         </View>
+        
+        {/* Add spacer at the bottom to prevent content from being hidden behind the nav bar */}
+        <BottomNavSpacer extraSpace={20} />
       </ScrollView>
     </SafeAreaView>
   );
@@ -116,14 +152,14 @@ const styles = StyleSheet.create({
     padding: 20,
   },
   sectionHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: 15,
   },
   sectionTitle: {
     fontSize: 18,
-    fontWeight: '600',
+    fontWeight: "600",
     color: COLORS.textWhite,
   },
   moversScroll: {
@@ -167,5 +203,27 @@ const styles = StyleSheet.create({
   addAsset: {
     color: COLORS.textPink,
     fontSize: 16,
+  },
+  loadingContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  errorContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  errorText: {
+    color: COLORS.textPink,
+    fontSize: 16,
+    textAlign: "center",
+  },
+  emptyText: {
+    color: COLORS.textSecondary,
+    fontSize: 14,
+    textAlign: "center",
+    marginVertical: 20,
   },
 });

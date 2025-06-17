@@ -44,7 +44,7 @@ function MainTabs() {
         component={AssetsScreen}
         options={{
           headerShown: true,
-          headerTitle: "Assets",
+          headerTitle: "",
           headerTransparent: true,
         }}
       />

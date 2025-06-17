@@ -14,31 +14,13 @@ import { COLORS } from "../constants/colors";
 import { PortfolioCard } from "../components/PortfolioCard";
 import { PortfolioChart } from "../components/PortfolioChart";
 import { AppHeader } from "../components/AppHeader";
+import { BottomNavSpacer } from "../components/BottomNavSpacer";
 import { useAuth } from "../contexts/AuthContext";
 import { api } from "../services/api";
 import { storage, STORAGE_KEYS } from "../utils/storage";
+import { Portfolio, OnboardingData, Asset } from "../types";
 
-interface Portfolio {
-  id: number;
-  name: string;
-  value: number;
-  riskScore: number;
-  change: number;
-  holdings?: any[];
-}
-
-interface OnboardingData {
-  riskTolerance: number;
-  investmentGoals: string;
-  initialInvestment: number;
-}
-
-interface Asset {
-  symbol: string;
-  fullName: string;
-  riskScore: number;
-}
-
+// Use a union type for items that could be either a portfolio or a "new portfolio" button
 type PortfolioOrNew = Portfolio | { id: number };
 
 export const DashboardScreen = ({ navigation }: any) => {
@@ -64,13 +46,6 @@ export const DashboardScreen = ({ navigation }: any) => {
   const [flipAnimation] = useState(new Animated.Value(0));
   const [heightAnimation] = useState(new Animated.Value(180));
   const scrollViewRef = useRef(null);
-  const [assets] = useState<Asset[]>([
-    { symbol: "TSLA", fullName: "Tesla Inc.", riskScore: 8 },
-    { symbol: "AAPL", fullName: "Apple Inc.", riskScore: 6 },
-    { symbol: "NVDA", fullName: "NVIDIA Corporation", riskScore: 7 },
-    { symbol: "MSFT", fullName: "Microsoft Corporation", riskScore: 5 },
-    { symbol: "AMZN", fullName: "Amazon.com Inc.", riskScore: 6 },
-  ]);
 
   // Initial load of portfolios
   useEffect(() => {
@@ -127,7 +102,7 @@ export const DashboardScreen = ({ navigation }: any) => {
         risk_score: riskTolerance,
       });
 
-      // Transform portfolio so that it can be passed 
+      // Transform portfolio so that it can be passed
       const transformedPortfolio: Portfolio = {
         id: newPortfolio.id,
         name: newPortfolio.name || "",
@@ -135,6 +110,8 @@ export const DashboardScreen = ({ navigation }: any) => {
         riskScore: newPortfolio.risk_score || 5,
         change: 0,
         holdings: newPortfolio.holdings || [],
+        starting_balance: Number(newPortfolio.starting_balance) || 0,
+        risk_score: newPortfolio.risk_score || 5,
       };
 
       setPortfolios([transformedPortfolio]);
@@ -170,6 +147,8 @@ export const DashboardScreen = ({ navigation }: any) => {
           riskScore: portfolio.risk_score || 5,
           change: 0,
           holdings: portfolio.holdings || [],
+          starting_balance: Number(portfolio.starting_balance) || 0,
+          risk_score: portfolio.risk_score || 5,
         }));
 
         setPortfolios(transformedPortfolios);
@@ -192,7 +171,9 @@ export const DashboardScreen = ({ navigation }: any) => {
   };
 
   const handleChartPress = () => {
-    navigation.navigate("Portfolio", { portfolioId: selectedPortfolio?.id });
+    if (selectedPortfolio) {
+      navigation.navigate("Portfolio", { portfolioId: selectedPortfolio.id });
+    }
   };
 
   const handleCreatePortfolio = () => {
@@ -214,9 +195,15 @@ export const DashboardScreen = ({ navigation }: any) => {
       useNativeDriver: true,
     }).start();
 
-    // Height animation
+    // Height animation - dynamically calculate based on holdings count
+    const baseHeight = 180;
+    const holdingsCount = selectedPortfolio?.holdings?.length || 0;
+    const expandedHeight = holdingsCount === 0 
+      ? baseHeight // Empty state height
+      : Math.min(500, baseHeight + holdingsCount * 40); // Cap at 500px
+
     Animated.timing(heightAnimation, {
-      toValue: showRiskDetails ? 180 : assets.length * 60 + 40, // 60 per item + padding
+      toValue: showRiskDetails ? baseHeight : expandedHeight,
       duration: 300,
       useNativeDriver: false,
     }).start();
@@ -285,9 +272,40 @@ export const DashboardScreen = ({ navigation }: any) => {
     );
   };
 
+
+
+  // Calculate average risk score from holdings
+  const calculateAverageRiskScore = (portfolio?: Portfolio | null): number => {
+    if (!portfolio || !portfolio.holdings || portfolio.holdings.length === 0) {
+      return 0;
+    }
+    
+    // For now, use the portfolio's risk score since holdings don't have individual risk scores yet
+    // In a real implementation, you would calculate the average from all holdings' risk scores
+    return portfolio.riskScore;
+  };
+
+  // Helper function for risk color
+  const getRiskColor = (score: number) => {
+    if (score === 0) return "#808080"; // Gray for no holdings
+    if (score > 7) return "#FF5252";
+    if (score > 4) return "#FFC107";
+    return "#4CAF50";
+  };
+
+  // Helper function for risk description
+  const getRiskDescription = (score: number): string => {
+    if (score === 0) return "No Holdings Yet";
+    if (score >= 8) return "High Risk Portfolio";
+    if (score >= 5) return "Moderate Risk Portfolio";
+    if (score >= 3) return "Low-Moderate Risk Portfolio";
+    return "Low Risk Portfolio";
+  };
+
+  // Create chart data with default values if no portfolio is selected
   const chartData = {
-    value: selectedPortfolio?.value || 0,
-    change: selectedPortfolio?.change || 0,
+    value: selectedPortfolio ? selectedPortfolio.value : 0,
+    change: selectedPortfolio ? selectedPortfolio.change : 0,
     timeRanges,
     selectedRange,
     onRangeSelect: setSelectedRange,
@@ -323,13 +341,10 @@ export const DashboardScreen = ({ navigation }: any) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <AppHeader username={user?.username || "User"} />
-      <ScrollView
-        ref={scrollViewRef}
-        style={styles.scrollView}
-        contentContainerStyle={styles.scrollContent}
-      >
-        {/* Portfolios Section */}
+      <AppHeader title="Dashboard" username={user?.username || "User"} />
+      <ScrollView style={styles.scrollView}>
+
+
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Your Portfolios</Text>
           <FlatList
@@ -342,7 +357,6 @@ export const DashboardScreen = ({ navigation }: any) => {
           />
         </View>
 
-        {/* Portfolio Chart Section */}
         <TouchableOpacity
           style={styles.section}
           onPress={handleChartPress}
@@ -352,10 +366,9 @@ export const DashboardScreen = ({ navigation }: any) => {
             <Text style={styles.sectionTitle}>{selectedPortfolio?.name}</Text>
             <Text style={styles.tapHint}>Tap to view</Text>
           </View>
-          <PortfolioChart data={chartData} />
+          <PortfolioChart data={chartData} onPress={handleChartPress} />
         </TouchableOpacity>
 
-        {/* Risk Analysis Section */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <View style={styles.titleContainer}>
@@ -395,10 +408,15 @@ export const DashboardScreen = ({ navigation }: any) => {
                   { display: showRiskDetails ? "none" : "flex" },
                 ]}
               >
-                <Text style={styles.riskScore}>7</Text>
+                <Text style={[
+                  styles.riskScore,
+                  { color: getRiskColor(calculateAverageRiskScore(selectedPortfolio)) }
+                ]}>
+                  {calculateAverageRiskScore(selectedPortfolio)}
+                </Text>
                 <Text style={styles.riskLabel}>out of 10</Text>
                 <Text style={styles.riskDescription}>
-                  Moderately High Risk Portfolio
+                  {getRiskDescription(calculateAverageRiskScore(selectedPortfolio))}
                 </Text>
               </Animated.View>
 
@@ -410,49 +428,54 @@ export const DashboardScreen = ({ navigation }: any) => {
                   { display: showRiskDetails ? "flex" : "none" },
                 ]}
               >
-                <View style={styles.assetsList}>
-                  {assets.map((asset) => (
-                    <View key={asset.symbol} style={styles.riskAssetItem}>
-                      <View style={styles.riskAssetInfo}>
-                        <Text style={styles.riskAssetSymbol}>
-                          {asset.symbol}
-                        </Text>
-                        <Text style={styles.riskAssetName}>
-                          {asset.fullName}
-                        </Text>
-                      </View>
-                      <View
-                        style={[
-                          styles.riskScoreBadge,
-                          {
-                            backgroundColor:
-                              asset.riskScore > 7
-                                ? "rgba(255, 82, 82, 0.2)"
-                                : asset.riskScore > 4
-                                  ? "rgba(255, 193, 7, 0.2)"
-                                  : "rgba(76, 175, 80, 0.2)",
-                          },
-                        ]}
-                      >
-                        <Text
+                {selectedPortfolio && selectedPortfolio.holdings.length > 0 ? (
+                  <View style={styles.assetsList}>
+                    {selectedPortfolio.holdings.map((holding) => (
+                      <View key={holding.id} style={styles.riskAssetItem}>
+                        <View style={styles.riskAssetInfo}>
+                          <Text style={styles.riskAssetSymbol}>
+                            {holding.symbol || holding.asset_symbol}
+                          </Text>
+                          <Text style={styles.riskAssetName}>{holding.fullName || ''}</Text>
+                        </View>
+                        <View
                           style={[
-                            styles.riskAssetScore,
+                            styles.riskBadge,
                             {
-                              color:
-                                asset.riskScore > 7
-                                  ? "#FF5252"
-                                  : asset.riskScore > 4
-                                    ? "#FFC107"
-                                    : "#4CAF50",
+                              backgroundColor: `${getRiskColor(
+                                selectedPortfolio.riskScore
+                              )}20`,
                             },
                           ]}
                         >
-                          {asset.riskScore}
-                        </Text>
+                          <Text
+                            style={[
+                              styles.riskScoreSmall,
+                              { color: getRiskColor(selectedPortfolio.riskScore) },
+                            ]}
+                          >
+                            {selectedPortfolio.riskScore}
+                          </Text>
+                        </View>
                       </View>
-                    </View>
-                  ))}
-                </View>
+                    ))}
+                  </View>
+                ) : (
+                  <View style={styles.emptyHoldingsContainer}>
+                    <Icon
+                      name="alert-circle"
+                      type="feather"
+                      size={24}
+                      color={COLORS.textSecondary}
+                    />
+                    <Text style={styles.emptyHoldingsText}>
+                      No holdings in this portfolio yet.
+                    </Text>
+                    <Text style={styles.emptyHoldingsSubtext}>
+                      Add assets to see risk analysis.
+                    </Text>
+                  </View>
+                )}
               </Animated.View>
             </TouchableOpacity>
           </Animated.View>
@@ -466,6 +489,9 @@ export const DashboardScreen = ({ navigation }: any) => {
           </Text>
           {/* Add pie chart here */}
         </View>
+
+        {/* Add spacer at the bottom to prevent content from being hidden behind the nav bar */}
+        <BottomNavSpacer extraSpace={20} />
       </ScrollView>
 
       <Overlay
@@ -585,12 +611,13 @@ const styles = StyleSheet.create({
   },
   assetsList: {
     flex: 1,
+    paddingBottom: 10,
   },
   riskAssetItem: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingVertical: 10,
+    paddingVertical: 6,
     borderBottomWidth: 1,
     borderBottomColor: "rgba(255, 255, 255, 0.05)",
   },
@@ -599,23 +626,19 @@ const styles = StyleSheet.create({
   },
   riskAssetSymbol: {
     color: COLORS.textWhite,
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: "600",
   },
   riskAssetName: {
     color: COLORS.textSecondary,
-    fontSize: 12,
-    marginTop: 2,
+    fontSize: 11,
+    marginTop: 1,
   },
-  riskScoreBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+  riskBadge: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
     borderRadius: 12,
     marginLeft: 10,
-  },
-  riskAssetScore: {
-    fontSize: 14,
-    fontWeight: "600",
   },
   allocationLabel: {
     fontSize: 14,
@@ -686,6 +709,11 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     opacity: 0.8,
   },
+  usernameText: {
+    fontSize: 24,
+    fontWeight: "bold",
+    color: COLORS.textWhite,
+  },
   loadingContainer: {
     flex: 1,
     justifyContent: "center",
@@ -745,5 +773,27 @@ const styles = StyleSheet.create({
     color: COLORS.textWhite,
     fontSize: 18,
     fontWeight: "600",
+  },
+  emptyHoldingsContainer: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+    padding: 20,
+  },
+  emptyHoldingsText: {
+    color: COLORS.textWhite,
+    fontSize: 16,
+    fontWeight: "600",
+    marginTop: 10,
+  },
+  emptyHoldingsSubtext: {
+    color: COLORS.textSecondary,
+    fontSize: 14,
+    textAlign: "center",
+  },
+  riskScoreSmall: {
+    fontSize: 24,
+    fontWeight: "bold",
+    color: COLORS.textPink,
   },
 });

@@ -2,6 +2,7 @@ import React from 'react';
 import { View, StyleSheet, TouchableOpacity } from 'react-native';
 import { Text } from '@rneui/themed';
 import { COLORS } from '../constants/colors';
+import { Portfolio } from '../types';
 
 interface PortfolioCardProps {
   name: string;

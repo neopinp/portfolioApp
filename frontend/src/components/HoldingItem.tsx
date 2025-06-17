@@ -2,39 +2,52 @@ import React from 'react';
 import { View, StyleSheet, Image } from 'react-native';
 import { Text } from '@rneui/themed';
 import { COLORS } from '../constants/colors';
+import { Holding } from '../types';
 
-interface HoldingItemProps {
-  symbol: string;
-  fullName: string;
-  value: number;
-  change: number;
+// Using the Holding type directly with optional props for component flexibility
+type HoldingItemProps = {
+  holding?: Holding;
+  symbol?: string;
+  fullName?: string;
+  value?: number;
+  change?: number;
   imageUrl?: string;
-}
+};
 
-export const HoldingItem = ({ symbol, fullName, value, change, imageUrl }: HoldingItemProps) => {
+export const HoldingItem = ({ holding, symbol, fullName, value, change, imageUrl }: HoldingItemProps) => {
+  // Use either the holding object or the individual props
+  const displaySymbol = symbol || holding?.symbol || holding?.asset_symbol || '';
+  const displayName = fullName || holding?.fullName || '';
+  const displayValue = value ?? holding?.value ?? 0;
+  const displayChange = change ?? holding?.change ?? 0;
+  const displayImageUrl = imageUrl || holding?.imageUrl;
+  
+  // Format value safely
+  const formattedValue = typeof displayValue === 'number' ? displayValue.toLocaleString() : '0';
+  
   return (
     <View style={styles.container}>
       <View style={styles.leftSection}>
-        {imageUrl ? (
-          <Image source={{ uri: imageUrl }} style={styles.image} />
+        {displayImageUrl ? (
+          <Image source={{ uri: displayImageUrl }} style={styles.image} />
         ) : (
           <View style={styles.symbolContainer}>
-            <Text style={styles.symbolText}>{symbol.charAt(0)}</Text>
+            <Text style={styles.symbolText}>{displaySymbol.charAt(0)}</Text>
           </View>
         )}
         <View style={styles.nameContainer}>
-          <Text style={styles.symbol}>{symbol}</Text>
-          <Text style={styles.fullName}>{fullName}</Text>
+          <Text style={styles.symbol}>{displaySymbol}</Text>
+          <Text style={styles.fullName}>{displayName}</Text>
         </View>
       </View>
       
       <View style={styles.rightSection}>
-        <Text style={styles.value}>${value.toLocaleString()}</Text>
+        <Text style={styles.value}>${formattedValue}</Text>
         <Text style={[
           styles.change,
-          { color: change >= 0 ? '#4CAF50' : '#FF5252' }
+          { color: displayChange >= 0 ? '#4CAF50' : '#FF5252' }
         ]}>
-          {change >= 0 ? '+' : ''}{change}%
+          {displayChange >= 0 ? '+' : ''}{displayChange}%
         </Text>
       </View>
     </View>
