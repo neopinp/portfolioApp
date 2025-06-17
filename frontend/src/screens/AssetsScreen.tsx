@@ -266,7 +266,7 @@ export const AssetsScreen = ({ route, navigation }: any) => {
             <View style={styles.tradeButtons}>
               {isAddToPortfolioMode ? (
                 <Button
-                  title="Add to Portfolio"
+                  title="Add"
                   buttonStyle={styles.addToPortfolioButton}
                   loading={isAddingAsset}
                   disabled={isAddingAsset}
@@ -390,8 +390,9 @@ const styles = StyleSheet.create({
   },
   tradeButtons: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    marginTop: 20,
+    justifyContent: "center",
+    alignItems: "center",
+    marginTop: 24,
   },
   tradeButton: {
     width: "48%",
@@ -405,9 +406,15 @@ const styles = StyleSheet.create({
     backgroundColor: "#FF5252",
   },
   addToPortfolioButton: {
-    width: "100%",
-    borderRadius: 8,
-    paddingVertical: 12,
+    alignSelf: "center",
+    width: "80%",
+    borderRadius: 12,
+    paddingVertical: 14,
     backgroundColor: COLORS.primary,
+    shadowColor: "#000",
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
   },
 });
