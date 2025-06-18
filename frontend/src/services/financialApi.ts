@@ -97,8 +97,15 @@ export const getAssetDetails = async (symbol: string): Promise<Asset | null> => 
     const quoteResponse = await fetch(quoteUrl);
     const quoteData = await quoteResponse.json();
     
-    if (!quoteData || !quoteData.c) {
-      console.error('Invalid API response for quote:', quoteData);
+    if (!quoteData) {
+      console.error('Missing API response for quote');
+      return null;
+    }
+    
+    // Check if this is a valid response with data
+    // Note: c can be 0 for valid symbols with no current price data
+    if (quoteData.c === undefined || quoteData.c === null) {
+      console.error('Invalid API response format for quote:', quoteData);
       return null;
     }
     

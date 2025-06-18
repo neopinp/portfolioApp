@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import {
   View,
   TouchableOpacity,
@@ -6,10 +6,12 @@ import {
   FlatList,
   Modal,
   ScrollView,
+  ActivityIndicator,
 } from "react-native";
 import { Text, Input, Icon } from "@rneui/themed";
 import { COLORS } from "../constants/colors";
 import { Asset } from "../types";
+import { searchAssets, getMultipleAssetDetails } from "../services/financialApi";
 
 interface AssetSearchModalProps {
   visible: boolean;
@@ -24,112 +26,128 @@ export const AssetSearchModal: React.FC<AssetSearchModalProps> = ({
 }) => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("All");
+  const [isLoading, setIsLoading] = useState(false);
+  const [searchResults, setSearchResults] = useState<Asset[]>([]);
+  const [recentSearches, setRecentSearches] = useState<Asset[]>([]);
+  const [popularAssets, setPopularAssets] = useState<Asset[]>([]);
 
-  const categories = ["All", "Stocks", "Crypto", "ETFs", "Forex"];
+  const categories = ["All", "Stocks", "ETFs", "Crypto", "Forex"];
 
-  const recentSearches: Asset[] = [
-    {
-      symbol: "AAPL",
-      name: "Apple Inc.",
-      fullName: "Apple Inc.",
-      price: 189.84,
-      change: 2.3,
-      riskScore: 6,
-      type: "Stocks",
-    },
-    {
-      symbol: "BTC",
-      name: "Bitcoin",
-      fullName: "Bitcoin",
-      price: 68245.5,
-      change: -1.2,
-      riskScore: 9,
-      type: "Crypto",
-    },
-    {
-      symbol: "VOO",
-      name: "Vanguard S&P 500 ETF",
-      fullName: "Vanguard S&P 500 ETF",
-      price: 458.72,
-      change: 0.8,
-      riskScore: 5,
-      type: "ETFs",
-    },
-  ];
+  // Load popular assets on mount and when modal becomes visible
+  useEffect(() => {
+    if (visible) {
+      loadPopularAssets();
+      // Load recent searches from storage (in a real app)
+      // For now, we'll use mock data
+      setRecentSearches([]);
+    }
+  }, [visible]);
 
-  const popularAssets: Asset[] = [
-    {
-      symbol: "MSFT",
-      name: "Microsoft Corporation",
-      fullName: "Microsoft Corporation",
-      price: 417.32,
-      change: 1.5,
-      riskScore: 5,
-      type: "Stocks",
-    },
-    {
-      symbol: "ETH",
-      name: "Ethereum",
-      fullName: "Ethereum",
-      price: 3456.78,
-      change: -0.5,
-      riskScore: 8,
-      type: "Crypto",
-    },
-    {
-      symbol: "QQQ",
-      name: "Invesco QQQ Trust",
-      fullName: "Invesco QQQ Trust",
-      price: 438.29,
-      change: 1.2,
-      riskScore: 6,
-      type: "ETFs",
-    },
-    {
-      symbol: "NVDA",
-      name: "NVIDIA Corporation",
-      fullName: "NVIDIA Corporation",
-      price: 477.76,
-      change: 3.5,
-      riskScore: 7,
-      type: "Stocks",
-    },
-    {
-      symbol: "AMZN",
-      name: "Amazon.com Inc.",
-      fullName: "Amazon.com Inc.",
-      price: 178.15,
-      change: 0.7,
-      riskScore: 6,
-      type: "Stocks",
-    },
-    {
-      symbol: "TSLA",
-      name: "Tesla Inc.",
-      fullName: "Tesla Inc.",
-      price: 238.45,
-      change: -1.8,
-      riskScore: 8,
-      type: "Stocks",
-    },
-    {
-      symbol: "META",
-      name: "Meta Platforms",
-      fullName: "Meta Platforms",
-      price: 341.49,
-      change: 1.7,
-      riskScore: 6,
-      type: "Stocks",
-    },
-  ];
+  // Load popular assets
+  const loadPopularAssets = async () => {
+    const defaultSymbols = ["AAPL", "MSFT", "GOOGL", "AMZN", "TSLA", "META", "NVDA", "BTC-USD", "ETH-USD"];
+    
+    try {
+      setIsLoading(true);
+      const assets = await getMultipleAssetDetails(defaultSymbols);
+      setPopularAssets(assets);
+    } catch (error) {
+      console.error("Error loading popular assets:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Handle search input changes with debounce
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (searchQuery.length >= 2) {
+        handleSearch(searchQuery);
+      } else {
+        setSearchResults([]);
+      }
+    }, 500); // 500ms debounce
+
+    return () => clearTimeout(timer);
+  }, [searchQuery]);
+
+  // Handle search
+  const handleSearch = async (query: string) => {
+    if (query.length < 2) return;
+    
+    try {
+      setIsLoading(true);
+      const results = await searchAssets(query);
+      setSearchResults(results);
+    } catch (error) {
+      console.error("Error searching assets:", error);
+      setSearchResults([]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Handle asset selection
+  const handleSelectAsset = async (asset: Asset) => {
+    try {
+      setIsLoading(true);
+      
+      // If the asset doesn't have price data yet, fetch it
+      if (asset.price === 0) {
+        const [detailedAsset] = await getMultipleAssetDetails([asset.symbol]);
+        if (detailedAsset) {
+          asset = detailedAsset;
+        }
+      }
+      
+      // Add to recent searches (avoiding duplicates)
+      setRecentSearches(prev => {
+        const exists = prev.some(item => item.symbol === asset.symbol);
+        if (exists) {
+          return prev;
+        }
+        // Keep only the 5 most recent
+        return [asset, ...prev].slice(0, 5);
+      });
+      
+      // Pass the asset to the parent component
+      onSelectAsset(asset);
+      onClose();
+    } catch (error) {
+      console.error("Error selecting asset:", error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Filter assets by category
+  const filterByCategory = (assets: Asset[]): Asset[] => {
+    if (selectedCategory === "All") {
+      return assets;
+    }
+    
+    return assets.filter(asset => {
+      const type = asset.type?.toLowerCase() || "";
+      
+      switch (selectedCategory) {
+        case "Stocks":
+          return type.includes("equity") || type.includes("stock");
+        case "ETFs":
+          return type.includes("etf") || type.includes("fund");
+        case "Crypto":
+          return type.includes("crypto") || type.includes("currency");
+        case "Forex":
+          return type.includes("forex") || type.includes("currency pair");
+        default:
+          return true;
+      }
+    });
+  };
 
   const renderAssetItem = ({ item }: { item: Asset }) => (
     <TouchableOpacity
       style={styles.assetItem}
-      onPress={() => {
-        onSelectAsset(item);
-        onClose();
-      }}
+      onPress={() => handleSelectAsset(item)}
     >
       <View>
         <Text style={styles.assetSymbol}>{item.symbol}</Text>
@@ -151,28 +169,6 @@ export const AssetSearchModal: React.FC<AssetSearchModalProps> = ({
       </View>
     </TouchableOpacity>
   );
-
-  // Filter assets based on search query and category
-  const filteredAssets = [...recentSearches, ...popularAssets]
-    .filter((asset) => {
-      // Filter by search query
-      if (searchQuery) {
-        const query = searchQuery.toLowerCase();
-        return (
-          asset.symbol.toLowerCase().includes(query) ||
-          asset.name.toLowerCase().includes(query) ||
-          (asset.fullName && asset.fullName.toLowerCase().includes(query))
-        );
-      }
-      return true;
-    })
-    .filter((asset) => {
-      // Filter by category
-      if (selectedCategory !== "All") {
-        return asset.type === selectedCategory;
-      }
-      return true;
-    });
 
   return (
     <Modal
@@ -205,6 +201,9 @@ export const AssetSearchModal: React.FC<AssetSearchModalProps> = ({
                 color={COLORS.textSecondary}
                 size={20}
               />
+            }
+            rightIcon={
+              isLoading ? <ActivityIndicator color={COLORS.textPink} size="small" /> : undefined
             }
           />
         </View>
@@ -246,8 +245,10 @@ export const AssetSearchModal: React.FC<AssetSearchModalProps> = ({
             // Show search results
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Search Results</Text>
-              {filteredAssets.length > 0 ? (
-                filteredAssets.map((asset) => (
+              {isLoading && searchResults.length === 0 ? (
+                <ActivityIndicator color={COLORS.textPink} style={styles.loader} />
+              ) : searchResults.length > 0 ? (
+                filterByCategory(searchResults).map((asset) => (
                   <View key={asset.symbol}>
                     {renderAssetItem({ item: asset })}
                   </View>
@@ -261,34 +262,28 @@ export const AssetSearchModal: React.FC<AssetSearchModalProps> = ({
           ) : (
             // Show recent and popular when not searching
             <>
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Recent Searches</Text>
-                {recentSearches
-                  .filter(
-                    (asset) =>
-                      selectedCategory === "All" ||
-                      asset.type === selectedCategory
-                  )
-                  .map((asset) => (
+              {recentSearches.length > 0 && (
+                <View style={styles.section}>
+                  <Text style={styles.sectionTitle}>Recent Searches</Text>
+                  {filterByCategory(recentSearches).map((asset) => (
                     <View key={asset.symbol}>
                       {renderAssetItem({ item: asset })}
                     </View>
                   ))}
-              </View>
+                </View>
+              )}
 
               <View style={styles.section}>
                 <Text style={styles.sectionTitle}>Popular Assets</Text>
-                {popularAssets
-                  .filter(
-                    (asset) =>
-                      selectedCategory === "All" ||
-                      asset.type === selectedCategory
-                  )
-                  .map((asset) => (
+                {isLoading && popularAssets.length === 0 ? (
+                  <ActivityIndicator color={COLORS.textPink} style={styles.loader} />
+                ) : (
+                  filterByCategory(popularAssets).map((asset) => (
                     <View key={asset.symbol}>
                       {renderAssetItem({ item: asset })}
                     </View>
-                  ))}
+                  ))
+                )}
               </View>
             </>
           )}
@@ -318,7 +313,7 @@ const styles = StyleSheet.create({
   },
   searchContainer: {
     padding: 20,
-    marginBottom: -35
+    paddingBottom: 10,
   },
   searchInputContainer: {
     paddingHorizontal: 0,
@@ -387,10 +382,6 @@ const styles = StyleSheet.create({
     fontSize: 14,
     marginTop: 2,
   },
-  assetType: {
-    color: COLORS.textSecondary,
-    fontSize: 14,
-  },
   assetPriceContainer: {
     alignItems: "flex-end",
   },
@@ -412,5 +403,8 @@ const styles = StyleSheet.create({
   divider: {
     height: 1,
     backgroundColor: "rgba(255, 255, 255, 0.1)",
+  },
+  loader: {
+    marginVertical: 20,
   },
 });

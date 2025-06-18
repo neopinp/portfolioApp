@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   ScrollView,
@@ -7,9 +7,12 @@ import {
   FlatList,
   Animated,
   Alert,
+  ActivityIndicator,
+  RefreshControl,
 } from "react-native";
 import { Text, Input, Icon, Button } from "@rneui/themed";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useFocusEffect } from "@react-navigation/native";
 import { COLORS } from "../constants/colors";
 import { PortfolioChart } from "../components/PortfolioChart";
 import { AppHeader } from "../components/AppHeader";
@@ -19,6 +22,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { api } from "../services/api";
 import { Asset } from "../types";
 import { usePortfolio } from "../contexts/PortfolioContext";
+import { getMultipleAssetDetails } from "../services/financialApi";
 
 export const AssetsScreen = ({ route, navigation }: any) => {
   const { portfolioId: routePortfolioId } = route.params || {};
@@ -35,37 +39,57 @@ export const AssetsScreen = ({ route, navigation }: any) => {
   const [timeRanges] = useState(["1D", "1W", "1M", "3M", "6M"]);
   const [selectedRange, setSelectedRange] = useState("1M");
   const [isAddingAsset, setIsAddingAsset] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
+  const [topMovers, setTopMovers] = useState<Asset[]>([]);
+  const [error, setError] = useState<string | null>(null);
 
-  const topMovers: Asset[] = [
-    {
-      symbol: "AAPL",
-      name: "Apple Inc.",
-      price: 189.84,
-      change: 2.3,
-      riskScore: 6,
-    },
-    {
-      symbol: "TSLA",
-      name: "Tesla Inc.",
-      price: 238.45,
-      change: -1.8,
-      riskScore: 8,
-    },
-    {
-      symbol: "NVDA",
-      name: "NVIDIA Corp.",
-      price: 477.76,
-      change: 3.5,
-      riskScore: 7,
-    },
-    {
-      symbol: "META",
-      name: "Meta Platforms",
-      price: 341.49,
-      change: 1.7,
-      riskScore: 6,
-    },
-  ];
+  // Default symbols for top movers
+  const defaultSymbols = ["AAPL", "MSFT", "GOOGL", "AMZN", "TSLA", "META", "NVDA"];
+
+  // Load top movers when screen is focused
+  useFocusEffect(
+    useCallback(() => {
+      loadTopMovers();
+    }, [])
+  );
+
+  // Load top movers data from Finnhub
+  const loadTopMovers = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      
+      const assets = await getMultipleAssetDetails(defaultSymbols);
+      
+      // Sort by absolute change percentage to get the actual top movers
+      const sortedAssets = assets.sort((a, b) => {
+        return Math.abs(b.change) - Math.abs(a.change);
+      });
+      
+      setTopMovers(sortedAssets.slice(0, 5)); // Take top 5 movers
+      
+      // If we had a selected asset, refresh its data too
+      if (selectedAsset) {
+        const updatedAsset = assets.find(asset => asset.symbol === selectedAsset.symbol);
+        if (updatedAsset) {
+          setSelectedAsset(updatedAsset);
+        }
+      }
+    } catch (err) {
+      console.error("Error loading top movers:", err);
+      setError("Failed to load market data. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Handle pull-to-refresh
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadTopMovers();
+    setRefreshing(false);
+  };
 
   const renderMoverCard = ({ item }: { item: Asset }) => (
     <TouchableOpacity
@@ -76,15 +100,15 @@ export const AssetsScreen = ({ route, navigation }: any) => {
       onPress={() => setSelectedAsset(item)}
     >
       <Text style={styles.symbolText}>{item.symbol}</Text>
-      <Text style={styles.priceText}>${item.price}</Text>
+      <Text style={styles.priceText}>${item.price?.toFixed(2) || "0.00"}</Text>
       <Text
         style={[
           styles.changeText,
-          { color: item.change >= 0 ? "#4CAF50" : "#FF5252" },
+          { color: (item.change || 0) >= 0 ? "#4CAF50" : "#FF5252" },
         ]}
       >
-        {item.change > 0 ? "+" : ""}
-        {item.change}%
+        {(item.change || 0) >= 0 ? "+" : ""}
+        {item.change?.toFixed(2) || "0.00"}%
       </Text>
     </TouchableOpacity>
   );
@@ -93,9 +117,25 @@ export const AssetsScreen = ({ route, navigation }: any) => {
     setSearchModalVisible(true);
   };
 
-  const handleSelectAssetFromSearch = (asset: Asset) => {
-    setSelectedAsset(asset);
-    setSearchModalVisible(false);
+  const handleSelectAssetFromSearch = async (asset: Asset) => {
+    try {
+      // If the asset doesn't have complete data, fetch it
+      if (!asset.price || asset.price === 0) {
+        setIsLoading(true);
+        const [detailedAsset] = await getMultipleAssetDetails([asset.symbol]);
+        if (detailedAsset) {
+          asset = detailedAsset;
+        }
+      }
+      
+      setSelectedAsset(asset);
+      setSearchModalVisible(false);
+    } catch (err) {
+      console.error("Error getting asset details:", err);
+      Alert.alert("Error", "Failed to get asset details. Please try again.");
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleBuyAsset = () => {
@@ -212,7 +252,17 @@ export const AssetsScreen = ({ route, navigation }: any) => {
         title={isAddToPortfolioMode ? "Add Asset to Portfolio" : "Assets"}
         username={user?.username || "User"}
       />
-      <ScrollView style={styles.scrollView}>
+      <ScrollView 
+        style={styles.scrollView}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[COLORS.textPink]}
+            tintColor={COLORS.textPink}
+          />
+        }
+      >
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>Top Market Movers</Text>
@@ -226,14 +276,27 @@ export const AssetsScreen = ({ route, navigation }: any) => {
             </TouchableOpacity>
           </View>
 
-          <FlatList
-            data={topMovers}
-            renderItem={renderMoverCard}
-            keyExtractor={(item) => item.symbol}
-            horizontal
-            showsHorizontalScrollIndicator={false}
-            contentContainerStyle={styles.moversList}
-          />
+          {isLoading && !refreshing ? (
+            <ActivityIndicator color={COLORS.textPink} size="large" style={styles.loader} />
+          ) : error ? (
+            <View style={styles.errorContainer}>
+              <Text style={styles.errorText}>{error}</Text>
+              <Button
+                title="Try Again"
+                onPress={loadTopMovers}
+                buttonStyle={styles.retryButton}
+              />
+            </View>
+          ) : (
+            <FlatList
+              data={topMovers}
+              renderItem={renderMoverCard}
+              keyExtractor={(item) => item.symbol}
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.moversList}
+            />
+          )}
         </View>
 
         {selectedAsset && (
@@ -241,28 +304,31 @@ export const AssetsScreen = ({ route, navigation }: any) => {
             <View style={styles.assetHeader}>
               <View>
                 <Text style={styles.assetSymbol}>{selectedAsset.symbol}</Text>
-                <Text style={styles.assetName}>{selectedAsset.name}</Text>
+                <Text style={styles.assetName}>{selectedAsset.fullName || selectedAsset.name}</Text>
+                {selectedAsset.sector && (
+                  <Text style={styles.assetSector}>{selectedAsset.sector}</Text>
+                )}
               </View>
               <View style={styles.priceContainer}>
-                <Text style={styles.assetPrice}>${selectedAsset.price}</Text>
+                <Text style={styles.assetPrice}>${selectedAsset.price?.toFixed(2) || "0.00"}</Text>
                 <Text
                   style={[
                     styles.assetChange,
                     {
-                      color: selectedAsset.change >= 0 ? "#4CAF50" : "#FF5252",
+                      color: (selectedAsset.change || 0) >= 0 ? "#4CAF50" : "#FF5252",
                     },
                   ]}
                 >
-                  {selectedAsset.change > 0 ? "+" : ""}
-                  {selectedAsset.change}%
+                  {(selectedAsset.change || 0) >= 0 ? "+" : ""}
+                  {selectedAsset.change?.toFixed(2) || "0.00"}%
                 </Text>
               </View>
             </View>
 
             <PortfolioChart
               data={{
-                value: selectedAsset.price,
-                change: selectedAsset.change,
+                value: selectedAsset.price || 0,
+                change: selectedAsset.change || 0,
                 timeRanges,
                 selectedRange,
                 onRangeSelect: setSelectedRange,
@@ -381,6 +447,12 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     marginTop: 4,
   },
+  assetSector: {
+    fontSize: 12,
+    color: COLORS.textSecondary,
+    marginTop: 2,
+    opacity: 0.7,
+  },
   priceContainer: {
     alignItems: "flex-end",
   },
@@ -404,6 +476,7 @@ const styles = StyleSheet.create({
     width: "48%",
     borderRadius: 8,
     paddingVertical: 12,
+    margin: 5,
   },
   buyButton: {
     backgroundColor: "#4CAF50",
@@ -422,5 +495,22 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.2,
     shadowRadius: 4,
     elevation: 3,
+  },
+  loader: {
+    marginVertical: 20,
+  },
+  errorContainer: {
+    padding: 15,
+    alignItems: "center",
+  },
+  errorText: {
+    color: "#FF5252",
+    marginBottom: 10,
+    textAlign: "center",
+  },
+  retryButton: {
+    backgroundColor: COLORS.primary,
+    paddingHorizontal: 20,
+    borderRadius: 8,
   },
 });
