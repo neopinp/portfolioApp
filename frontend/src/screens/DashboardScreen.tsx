@@ -19,15 +19,16 @@ import { useAuth } from "../contexts/AuthContext";
 import { api } from "../services/api";
 import { storage, STORAGE_KEYS } from "../utils/storage";
 import { Portfolio, OnboardingData, Asset } from "../types";
-
+import { usePortfolio } from "contexts/PortfolioContext";
 // Use a union type for items that could be either a portfolio or a "new portfolio" button
 type PortfolioOrNew = Portfolio | { id: number };
 
 export const DashboardScreen = ({ navigation }: any) => {
   const { logout, user } = useAuth();
+  const { selectedPortfolio: contextPortfolio, setSelectedPortfolio: setContextPortfolio } = usePortfolio();
   const [portfolios, setPortfolios] = useState<Portfolio[]>([]);
   const [selectedPortfolio, setSelectedPortfolio] = useState<Portfolio | null>(
-    null
+    contextPortfolio
   );
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -167,6 +168,7 @@ export const DashboardScreen = ({ navigation }: any) => {
     const portfolio = portfolios.find((p) => p.id === portfolioId);
     if (portfolio) {
       setSelectedPortfolio(portfolio);
+      setContextPortfolio(portfolio);
     }
   };
 
@@ -272,8 +274,6 @@ export const DashboardScreen = ({ navigation }: any) => {
     );
   };
 
-
-
   // Calculate average risk score from holdings
   const calculateAverageRiskScore = (portfolio?: Portfolio | null): number => {
     if (!portfolio || !portfolio.holdings || portfolio.holdings.length === 0) {
@@ -310,6 +310,21 @@ export const DashboardScreen = ({ navigation }: any) => {
     selectedRange,
     onRangeSelect: setSelectedRange,
   };
+
+  // Update the effect to sync the local state with the context
+  useEffect(() => {
+    if (contextPortfolio) {
+      setSelectedPortfolio(contextPortfolio);
+    }
+  }, [contextPortfolio]);
+
+  // Update local state when portfolios are loaded
+  useEffect(() => {
+    if (portfolios.length > 0 && !selectedPortfolio) {
+      setSelectedPortfolio(portfolios[0]);
+      setContextPortfolio(portfolios[0]);
+    }
+  }, [portfolios, selectedPortfolio]);
 
   if (isLoading) {
     return (

@@ -18,9 +18,15 @@ import { AssetSearchModal } from "../components/AssetSearchModal";
 import { useAuth } from "../contexts/AuthContext";
 import { api } from "../services/api";
 import { Asset } from "../types";
+import { usePortfolio } from "../contexts/PortfolioContext";
 
 export const AssetsScreen = ({ route, navigation }: any) => {
-  const { portfolioId } = route.params || {};
+  const { portfolioId: routePortfolioId } = route.params || {};
+  const { selectedPortfolio: contextPortfolio } = usePortfolio();
+  
+  // Use the portfolioId from route params if available, otherwise it's not in "add to portfolio" mode
+  const portfolioId = routePortfolioId;
+  
   const { user } = useAuth();
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
   const [showSearch, setShowSearch] = useState(false);

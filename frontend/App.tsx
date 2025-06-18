@@ -6,6 +6,7 @@ import { BottomTabBarProps } from "@react-navigation/bottom-tabs";
 import { SafeAreaProvider } from "react-native-safe-area-context";
 import { ThemeProvider } from "@rneui/themed";
 import { AuthProvider, useAuth } from "./src/contexts/AuthContext";
+import { PortfolioProvider } from "./src/contexts/PortfolioContext";
 import { storage, STORAGE_KEYS } from "./src/utils/storage";
 import LoginScreen from "./src/screens/LoginScreen";
 import { OnboardingScreen } from "./src/screens/OnboardingScreen";
@@ -123,7 +124,9 @@ export default function App() {
     <SafeAreaProvider>
       <ThemeProvider>
         <AuthProvider>
-          <Navigation />
+          <PortfolioProvider>
+            <Navigation />
+          </PortfolioProvider>
         </AuthProvider>
       </ThemeProvider>
     </SafeAreaProvider>

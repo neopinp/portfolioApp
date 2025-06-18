@@ -14,12 +14,19 @@ import { HoldingItem } from "../components/HoldingItem";
 import { AppHeader } from "../components/AppHeader";
 import { Icon } from "@rneui/themed";
 import { useAuth } from "../contexts/AuthContext";
+import { usePortfolio } from "../contexts/PortfolioContext";
 import { Holding, Portfolio as PortfolioType } from "../types";
 import { api } from "../services/api";
 import { BottomNavSpacer } from "../components/BottomNavSpacer";
 
 export const PortfolioScreen = ({ route, navigation }: any) => {
-  const { portfolioId } = route.params;
+  // Get portfolioId from route params or use the selected portfolio from context
+  const { portfolioId: routePortfolioId } = route.params || {};
+  const { selectedPortfolio: contextPortfolio } = usePortfolio();
+  
+  // Use the portfolioId from route params if available, otherwise use the one from context
+  const portfolioId = routePortfolioId || (contextPortfolio?.id);
+  
   const { user } = useAuth();
   const [timeRanges] = useState(["1D", "1W", "1M", "3M", "6M"]);
   const [selectedRange, setSelectedRange] = useState("1M");
@@ -39,20 +46,31 @@ export const PortfolioScreen = ({ route, navigation }: any) => {
     holdings: [],
   });
 
+  // Fetch portfolio data when the component mounts or portfolioId changes
   useEffect(() => {
     const fetchPortfolioData = async () => {
+      // If no portfolioId is available, show an error
+      if (!portfolioId) {
+        setError("No portfolio selected. Please select a portfolio from the Dashboard.");
+        setLoading(false);
+        return;
+      }
+      
       try {
         setLoading(true);
         setError(null);
-
+        
+        // Fetch the portfolio data using the API
         const response = await api.portfolios.getOne(portfolioId);
-
+        
+        // Transform the response to match our expected format
         const portfolioData = {
           name: response.portfolio?.name || "Portfolio",
           value: Number(response.portfolio?.starting_balance) || 0,
-          change: 0,
+          change: 0, // Default to 0 if not available
           holdings: response.portfolio?.holdings || [],
         };
+        
         setPortfolio(portfolioData);
       } catch (err) {
         console.error("Error fetching portfolio:", err);
