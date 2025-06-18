@@ -121,3 +121,29 @@ export const api = {
       }),
   },
 };
+
+// Fetch a portfolio with full details
+export const fetchPortfolio = async (id: number): Promise<Portfolio> => {
+  try {
+    const response = await api.portfolios.getOne(id);
+    
+    // Transform the API response to match our Portfolio type
+    const portfolio: Portfolio = {
+      id: response.portfolio.id,
+      name: response.portfolio.name,
+      starting_balance: response.portfolio.starting_balance,
+      risk_score: response.portfolio.risk_score,
+      holdings: response.portfolio.holdings || [],
+      value: response.portfolio.value || 0,
+      change: response.portfolio.change || 0,
+      riskScore: response.portfolio.risk_score || 5,
+      userId: response.portfolio.user_id,
+      created_at: response.portfolio.created_at ? new Date(response.portfolio.created_at) : undefined,
+    };
+    
+    return portfolio;
+  } catch (error) {
+    console.error("Error fetching portfolio:", error);
+    throw error;
+  }
+};

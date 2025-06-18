@@ -9,6 +9,7 @@ export interface Portfolio {
   riskScore: number;
   userId?: number;
   created_at?: Date;
+  chartData?: any[];
 }
 
 export interface Holding {
@@ -23,6 +24,14 @@ export interface Holding {
   value?: number;
   change?: number;
   imageUrl?: string;
+  
+  // Additional properties for real-time data
+  quantity: number;
+  purchasePrice: number;
+  currentValue: number;
+  profitLoss: number;
+  profitLossPercentage: number;
+  asset: Asset;
 }
 
 export interface Asset {

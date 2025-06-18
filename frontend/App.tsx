@@ -15,9 +15,13 @@ import { PortfolioScreen } from "./src/screens/PortfolioScreen";
 import { AssetsScreen } from "./src/screens/AssetsScreen";
 import { CreatePortfolioScreen } from "./src/screens/CreatePortfolioScreen";
 import { BottomNav } from "./src/components/BottomNav";
+import { ApiTestScreen } from "./src/screens/ApiTestScreen";
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
+
+// Set this to true to show the API test screen instead of the normal app
+const SHOW_API_TEST = false;
 
 function MainTabs() {
   return (
@@ -58,6 +62,22 @@ function Navigation() {
 
   if (isLoading) {
     return null; // Or a loading screen
+  }
+
+  // If SHOW_API_TEST is true, show the test screen
+  if (SHOW_API_TEST) {
+    return (
+      <NavigationContainer>
+        <Stack.Navigator
+          screenOptions={{
+            headerShown: false,
+            contentStyle: { backgroundColor: "transparent" },
+          }}
+        >
+          <Stack.Screen name="ApiTest" component={ApiTestScreen} />
+        </Stack.Navigator>
+      </NavigationContainer>
+    );
   }
 
   return (

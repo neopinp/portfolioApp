@@ -27,6 +27,9 @@
     },
     "plugins": [
       "expo-secure-store"
-    ]
+    ],
+    "extra": {
+      "FINNHUB_API_KEY": "YOUR_FINNHUB_API_KEY_HERE"
+    }
   }
 }
