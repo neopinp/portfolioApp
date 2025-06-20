@@ -44,6 +44,18 @@ export interface Asset {
   type?: string;
   sector?: string;
   imageUrl?: string;
+  
+  // Additional detailed information
+  marketCap?: string;
+  sharesOutstanding?: string;
+  high52w?: string;
+  low52w?: string;
+  peRatio?: string;
+  eps?: string;
+  beta?: string;
+  dividendYield?: string;
+  volume?: string;
+  avgVolume?: string;
 }
 
 export interface User {

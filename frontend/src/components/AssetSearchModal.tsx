@@ -92,12 +92,10 @@ export const AssetSearchModal: React.FC<AssetSearchModalProps> = ({
     try {
       setIsLoading(true);
       
-      // If the asset doesn't have price data yet, fetch it
-      if (asset.price === 0) {
-        const [detailedAsset] = await getMultipleAssetDetails([asset.symbol]);
-        if (detailedAsset) {
-          asset = detailedAsset;
-        }
+      // Always fetch the latest detailed data for the selected asset
+      const [detailedAsset] = await getMultipleAssetDetails([asset.symbol]);
+      if (detailedAsset) {
+        asset = detailedAsset;
       }
       
       // Add to recent searches (avoiding duplicates)
@@ -115,6 +113,9 @@ export const AssetSearchModal: React.FC<AssetSearchModalProps> = ({
       onClose();
     } catch (error) {
       console.error("Error selecting asset:", error);
+      // If we can't get detailed data, use what we have
+      onSelectAsset(asset);
+      onClose();
     } finally {
       setIsLoading(false);
     }

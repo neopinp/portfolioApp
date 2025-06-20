@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   View,
   ScrollView,
@@ -27,10 +27,10 @@ import { getMultipleAssetDetails } from "../services/financialApi";
 export const AssetsScreen = ({ route, navigation }: any) => {
   const { portfolioId: routePortfolioId } = route.params || {};
   const { selectedPortfolio: contextPortfolio } = usePortfolio();
-  
+
   // Use the portfolioId from route params if available, otherwise it's not in "add to portfolio" mode
   const portfolioId = routePortfolioId;
-  
+
   const { user } = useAuth();
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
   const [showSearch, setShowSearch] = useState(false);
@@ -44,8 +44,21 @@ export const AssetsScreen = ({ route, navigation }: any) => {
   const [topMovers, setTopMovers] = useState<Asset[]>([]);
   const [error, setError] = useState<string | null>(null);
 
+  // Flippable card state and animations
+  const [showDetailedInfo, setShowDetailedInfo] = useState(false);
+  const [flipAnimation] = useState(new Animated.Value(0));
+  const [heightAnimation] = useState(new Animated.Value(120));
+
   // Default symbols for top movers
-  const defaultSymbols = ["AAPL", "MSFT", "GOOGL", "AMZN", "TSLA", "META", "NVDA"];
+  const defaultSymbols = [
+    "AAPL",
+    "MSFT",
+    "GOOGL",
+    "AMZN",
+    "TSLA",
+    "META",
+    "NVDA",
+  ];
 
   // Load top movers when screen is focused
   useFocusEffect(
@@ -59,21 +72,31 @@ export const AssetsScreen = ({ route, navigation }: any) => {
     try {
       setIsLoading(true);
       setError(null);
-      
+
       const assets = await getMultipleAssetDetails(defaultSymbols);
-      
+
       // Sort by absolute change percentage to get the actual top movers
       const sortedAssets = assets.sort((a, b) => {
         return Math.abs(b.change) - Math.abs(a.change);
       });
-      
+
       setTopMovers(sortedAssets.slice(0, 5)); // Take top 5 movers
-      
-      // If we had a selected asset, refresh its data too
+
+      // If we had a selected asset, refresh its data too with detailed information
       if (selectedAsset) {
-        const updatedAsset = assets.find(asset => asset.symbol === selectedAsset.symbol);
-        if (updatedAsset) {
-          setSelectedAsset(updatedAsset);
+        try {
+          const [updatedAsset] = await getMultipleAssetDetails([
+            selectedAsset.symbol,
+          ]);
+          if (updatedAsset) {
+            setSelectedAsset(updatedAsset);
+          }
+        } catch (err) {
+          console.error(
+            `Error refreshing selected asset ${selectedAsset.symbol}:`,
+            err
+          );
+          // Keep the existing selected asset if refresh fails
         }
       }
     } catch (err) {
@@ -119,20 +142,24 @@ export const AssetsScreen = ({ route, navigation }: any) => {
 
   const handleSelectAssetFromSearch = async (asset: Asset) => {
     try {
-      // If the asset doesn't have complete data, fetch it
-      if (!asset.price || asset.price === 0) {
-        setIsLoading(true);
-        const [detailedAsset] = await getMultipleAssetDetails([asset.symbol]);
-        if (detailedAsset) {
-          asset = detailedAsset;
-        }
+      // Always fetch complete data for the selected asset
+      setIsLoading(true);
+      const [detailedAsset] = await getMultipleAssetDetails([asset.symbol]);
+
+      if (detailedAsset) {
+        setSelectedAsset(detailedAsset);
+      } else {
+        setSelectedAsset(asset);
+        console.warn(
+          `Could not fetch detailed information for ${asset.symbol}`
+        );
       }
-      
-      setSelectedAsset(asset);
+
       setSearchModalVisible(false);
     } catch (err) {
       console.error("Error getting asset details:", err);
       Alert.alert("Error", "Failed to get asset details. Please try again.");
+      setSelectedAsset(asset); // Fall back to the basic asset data
     } finally {
       setIsLoading(false);
     }
@@ -174,6 +201,48 @@ export const AssetsScreen = ({ route, navigation }: any) => {
         },
       ]
     );
+  };
+
+  // Flip card animation function
+  const flipCard = () => {
+    setShowDetailedInfo(!showDetailedInfo);
+
+    // Flip animation
+    Animated.spring(flipAnimation, {
+      toValue: showDetailedInfo ? 0 : 180,
+      friction: 8,
+      tension: 10,
+      useNativeDriver: true,
+    }).start();
+
+    // Height animation
+    const baseHeight = 120;
+    const expandedHeight = 360; // Height when expanded to show all details
+
+    Animated.timing(heightAnimation, {
+      toValue: showDetailedInfo ? baseHeight : expandedHeight,
+      duration: 300,
+      useNativeDriver: false,
+    }).start();
+  };
+
+  // Animation interpolations
+  const frontInterpolate = flipAnimation.interpolate({
+    inputRange: [0, 180],
+    outputRange: ["0deg", "180deg"],
+  });
+
+  const backInterpolate = flipAnimation.interpolate({
+    inputRange: [0, 180],
+    outputRange: ["180deg", "360deg"],
+  });
+
+  const frontAnimatedStyle = {
+    transform: [{ rotateY: frontInterpolate }],
+  };
+
+  const backAnimatedStyle = {
+    transform: [{ rotateY: backInterpolate }],
   };
 
   const handleAddToPortfolio = async () => {
@@ -252,7 +321,7 @@ export const AssetsScreen = ({ route, navigation }: any) => {
         title={isAddToPortfolioMode ? "Add Asset to Portfolio" : "Assets"}
         username={user?.username || "User"}
       />
-      <ScrollView 
+      <ScrollView
         style={styles.scrollView}
         refreshControl={
           <RefreshControl
@@ -277,7 +346,11 @@ export const AssetsScreen = ({ route, navigation }: any) => {
           </View>
 
           {isLoading && !refreshing ? (
-            <ActivityIndicator color={COLORS.textPink} size="large" style={styles.loader} />
+            <ActivityIndicator
+              color={COLORS.textPink}
+              size="large"
+              style={styles.loader}
+            />
           ) : error ? (
             <View style={styles.errorContainer}>
               <Text style={styles.errorText}>{error}</Text>
@@ -302,20 +375,27 @@ export const AssetsScreen = ({ route, navigation }: any) => {
         {selectedAsset && (
           <View style={styles.section}>
             <View style={styles.assetHeader}>
-              <View>
+              <View style={styles.assetInfoContainer}>
                 <Text style={styles.assetSymbol}>{selectedAsset.symbol}</Text>
-                <Text style={styles.assetName}>{selectedAsset.fullName || selectedAsset.name}</Text>
+                <Text style={styles.assetName}>
+                  {selectedAsset.fullName || selectedAsset.name}
+                </Text>
                 {selectedAsset.sector && (
                   <Text style={styles.assetSector}>{selectedAsset.sector}</Text>
                 )}
               </View>
               <View style={styles.priceContainer}>
-                <Text style={styles.assetPrice}>${selectedAsset.price?.toFixed(2) || "0.00"}</Text>
+                <Text style={styles.assetPrice}>
+                  ${selectedAsset.price?.toFixed(2) || "0.00"}
+                </Text>
                 <Text
                   style={[
                     styles.assetChange,
                     {
-                      color: (selectedAsset.change || 0) >= 0 ? "#4CAF50" : "#FF5252",
+                      color:
+                        (selectedAsset.change || 0) >= 0
+                          ? "#4CAF50"
+                          : "#FF5252",
                     },
                   ]}
                 >
@@ -334,6 +414,129 @@ export const AssetsScreen = ({ route, navigation }: any) => {
                 onRangeSelect: setSelectedRange,
               }}
             />
+
+            {/* Flippable Asset Details Card */}
+            <Animated.View
+              style={[
+                styles.assetDetailsContainer,
+                {
+                  height: heightAnimation,
+                },
+              ]}
+            >
+              <TouchableOpacity
+                onPress={flipCard}
+                activeOpacity={0.9}
+                style={styles.cardContainer}
+              >
+                <Animated.View
+                  style={[
+                    styles.card,
+                    styles.frontCard,
+                    frontAnimatedStyle,
+                    { display: showDetailedInfo ? "none" : "flex" },
+                  ]}
+                >
+                  <View style={styles.frontCardContent}>
+                    <View style={styles.keyMetricsRow}>
+                      <View style={styles.keyMetric}>
+                        <Text style={styles.metricLabel}>Market Cap</Text>
+                        <Text style={styles.metricValue}>{selectedAsset.marketCap || "N/A"}</Text>
+                      </View>
+                      <View style={styles.keyMetric}>
+                        <Text style={styles.metricLabel}>P/E Ratio</Text>
+                        <Text style={styles.metricValue}>{selectedAsset.peRatio || "N/A"}</Text>
+                      </View>
+                    </View>
+                    <View style={styles.tapForMoreContainer}>
+                      <Text style={styles.tapForMoreText}>Tap for more details</Text>
+                    </View>
+                  </View>
+                </Animated.View>
+
+                <Animated.View
+                  style={[
+                    styles.card,
+                    styles.backCard,
+                    backAnimatedStyle,
+                    { display: showDetailedInfo ? "flex" : "none" },
+                  ]}
+                >
+                  <Text style={styles.backCardTitle}>Asset Details</Text>
+                  <View style={styles.detailsGrid}>
+                    <View style={styles.detailItem}>
+                      <Text style={styles.detailLabel}>Market Cap</Text>
+                      <Text style={styles.detailValue}>
+                        {selectedAsset.marketCap || "N/A"}
+                      </Text>
+                    </View>
+
+                    <View style={styles.detailItem}>
+                      <Text style={styles.detailLabel}>Shares Outstanding</Text>
+                      <Text style={styles.detailValue}>
+                        {selectedAsset.sharesOutstanding || "N/A"}
+                      </Text>
+                    </View>
+
+                    <View style={styles.detailItem}>
+                      <Text style={styles.detailLabel}>P/E Ratio</Text>
+                      <Text style={styles.detailValue}>
+                        {selectedAsset.peRatio || "N/A"}
+                      </Text>
+                    </View>
+
+                    <View style={styles.detailItem}>
+                      <Text style={styles.detailLabel}>EPS</Text>
+                      <Text style={styles.detailValue}>
+                        {selectedAsset.eps || "N/A"}
+                      </Text>
+                    </View>
+
+                    <View style={styles.detailItem}>
+                      <Text style={styles.detailLabel}>52W High</Text>
+                      <Text style={styles.detailValue}>
+                        {selectedAsset.high52w || "N/A"}
+                      </Text>
+                    </View>
+
+                    <View style={styles.detailItem}>
+                      <Text style={styles.detailLabel}>52W Low</Text>
+                      <Text style={styles.detailValue}>
+                        {selectedAsset.low52w || "N/A"}
+                      </Text>
+                    </View>
+
+                    <View style={styles.detailItem}>
+                      <Text style={styles.detailLabel}>Beta</Text>
+                      <Text style={styles.detailValue}>
+                        {selectedAsset.beta || "N/A"}
+                      </Text>
+                    </View>
+
+                    <View style={styles.detailItem}>
+                      <Text style={styles.detailLabel}>Dividend Yield</Text>
+                      <Text style={styles.detailValue}>
+                        {selectedAsset.dividendYield || "N/A"}
+                      </Text>
+                    </View>
+
+                    <View style={styles.detailItem}>
+                      <Text style={styles.detailLabel}>Volume</Text>
+                      <Text style={styles.detailValue}>
+                        {selectedAsset.volume || "N/A"}
+                      </Text>
+                    </View>
+
+                    <View style={styles.detailItem}>
+                      <Text style={styles.detailLabel}>Avg Volume</Text>
+                      <Text style={styles.detailValue}>
+                        {selectedAsset.avgVolume || "N/A"}
+                      </Text>
+                    </View>
+                  </View>
+                </Animated.View>
+              </TouchableOpacity>
+            </Animated.View>
 
             <View style={styles.tradeButtons}>
               {isAddToPortfolioMode ? (
@@ -437,6 +640,9 @@ const styles = StyleSheet.create({
     alignItems: "flex-start",
     marginBottom: 20,
   },
+  assetInfoContainer: {
+    flex: 1,
+  },
   assetSymbol: {
     fontSize: 24,
     fontWeight: "bold",
@@ -446,6 +652,9 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: COLORS.textSecondary,
     marginTop: 4,
+    flex: 1,
+    flexWrap: 'wrap',
+    maxWidth: '80%',
   },
   assetSector: {
     fontSize: 12,
@@ -455,6 +664,8 @@ const styles = StyleSheet.create({
   },
   priceContainer: {
     alignItems: "flex-end",
+    minWidth: 100,
+    marginLeft: 10,
   },
   assetPrice: {
     fontSize: 24,
@@ -512,5 +723,97 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primary,
     paddingHorizontal: 20,
     borderRadius: 8,
+  },
+  assetDetailsContainer: {
+    padding: 20,
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
+    borderRadius: 12,
+    marginBottom: 20,
+    overflow: "hidden",
+  },
+  cardContainer: {
+    flex: 1,
+    position: "relative",
+  },
+  card: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    top: 0,
+    bottom: 0,
+    backfaceVisibility: "hidden",
+    padding: 15,
+  },
+  frontCard: {
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  backCard: {
+    alignItems: "stretch",
+  },
+  frontCardContent: {
+    flex: 1,
+    justifyContent: "center",
+    alignItems: "center",
+  },
+  keyMetricsRow: {
+    flexDirection: "row",
+    justifyContent: "space-around",
+    width: "100%",
+    marginBottom: 20,
+  },
+  keyMetric: {
+    alignItems: "center",
+    padding: 10,
+    marginRight: 25
+  },
+  metricLabel: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: COLORS.textSecondary,
+    marginBottom: 4,
+  },
+  metricValue: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: COLORS.textWhite,
+  },
+  tapForMoreText: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: COLORS.textSecondary,
+    opacity: 0.8,
+    marginTop: 10,
+  },
+  tapForMoreContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+  },
+  detailsGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    marginHorizontal: -5,
+  },
+  detailItem: {
+    width: "50%",
+    paddingHorizontal: 5,
+    marginBottom: 12,
+  },
+  detailLabel: {
+    fontSize: 12,
+    fontWeight: "600",
+    color: COLORS.textSecondary,
+    marginBottom: 4,
+  },
+  detailValue: {
+    fontSize: 14,
+    fontWeight: "500",
+    color: COLORS.textWhite,
+  },
+  backCardTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: COLORS.textWhite,
+    marginBottom: 10,
   },
 });
