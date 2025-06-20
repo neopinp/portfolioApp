@@ -162,10 +162,14 @@ export const getAssetDetails = async (
     // Format market cap for display
     const formatMarketCap = (marketCap: number) => {
       if (!marketCap) return "N/A";
-      if (marketCap >= 1e12) return `$${(marketCap / 1e12).toFixed(2)}T`;
-      if (marketCap >= 1e9) return `$${(marketCap / 1e9).toFixed(2)}B`;
-      if (marketCap >= 1e6) return `$${(marketCap / 1e6).toFixed(2)}M`;
-      return `$${marketCap.toFixed(2)}`;
+      
+      // Finnhub typically returns market cap in millions
+      const marketCapInDollars = marketCap * 1e6;
+      
+      if (marketCapInDollars >= 1e12) return `$${(marketCapInDollars / 1e12).toFixed(2)}T`;
+      if (marketCapInDollars >= 1e9) return `$${(marketCapInDollars / 1e9).toFixed(2)}B`;
+      if (marketCapInDollars >= 1e6) return `$${(marketCapInDollars / 1e6).toFixed(2)}M`;
+      return `$${marketCapInDollars.toFixed(2)}`;
     };
 
     // Extract additional metrics
@@ -189,35 +193,35 @@ export const getAssetDetails = async (
         // Handle shares outstanding formatting
         if (!profileData.shareOutstanding) {
           // Try to get shares outstanding from metrics if not in profile
-          const sharesFromMetrics = metrics.sharesOutstanding || metrics.commonStockSharesOutstanding;
+          const sharesFromMetrics =
+            metrics.sharesOutstanding || metrics.commonStockSharesOutstanding;
           if (sharesFromMetrics) {
+            // Finnhub typically returns shares in actual count
             if (sharesFromMetrics >= 1e9) {
               return `${(sharesFromMetrics / 1e9).toFixed(2)}B`;
-            } else {
+            } else if (sharesFromMetrics >= 1e6) {
               return `${(sharesFromMetrics / 1e6).toFixed(2)}M`;
+            } else if (sharesFromMetrics >= 1e3) {
+              return `${(sharesFromMetrics / 1e3).toFixed(2)}K`;
+            } else {
+              return sharesFromMetrics.toFixed(2);
             }
           }
           return "N/A";
         }
-        
+
         // Use profile data if available
-        const shares = profileData.shareOutstanding;
-        // Finnhub sometimes returns shares in different units
-        if (shares < 1) {
-          // Likely in billions already
-          return `${(shares * 1000).toFixed(2)}M`;
-        } else if (shares < 1000) {
-          // Likely in millions
-          return `${shares.toFixed(2)}M`;
-        } else if (shares < 1e6) {
-          // Likely in thousands
-          return `${(shares / 1000).toFixed(2)}M`;
-        } else if (shares < 1e9) {
-          // Likely in actual shares
-          return `${(shares / 1e6).toFixed(2)}M`;
-        } else {
-          // Very large number, use billions
+        // Finnhub typically returns shareOutstanding in millions
+        const shares = profileData.shareOutstanding * 1e6;
+        
+        if (shares >= 1e9) {
           return `${(shares / 1e9).toFixed(2)}B`;
+        } else if (shares >= 1e6) {
+          return `${(shares / 1e6).toFixed(2)}M`;
+        } else if (shares >= 1e3) {
+          return `${(shares / 1e3).toFixed(2)}K`;
+        } else {
+          return shares.toFixed(2);
         }
       })(),
       high52w: metrics["52WeekHigh"]
@@ -234,7 +238,7 @@ export const getAssetDetails = async (
         : "N/A",
       beta: metrics.beta ? metrics.beta.toFixed(2) : "N/A",
       dividendYield: metrics.dividendYieldIndicatedAnnual
-        ? `${(metrics.dividendYieldIndicatedAnnual * 100).toFixed(2)}%`
+        ? `${(metrics.dividendYieldIndicatedAnnual).toFixed(2)}%`
         : "N/A",
       volume: quoteData.v ? quoteData.v.toLocaleString() : "N/A",
       avgVolume: metrics.averageDailyVolume10Day
