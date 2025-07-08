@@ -3,7 +3,7 @@ const API_CONFIG = {
   // Development URLs
   development: {
     baseURL: "http://localhost:5000/api",
-    ngrokURL: "https://e034-71-58-44-175.ngrok-free.app/api", // Added /api suffix
+    ngrokURL: "https://9ee138bd10b5.ngrok-free.app/api", // Added /api suffix
   },
   // Production URL (when you deploy)
   production: {
@@ -11,8 +11,8 @@ const API_CONFIG = {
   },
 };
 
-// Get the current environment
-const ENV = process.env.NODE_ENV || "development";
+// Get the current environment - use __DEV__ for React Native
+const ENV = __DEV__ ? "development" : "production";
 
 // Export the appropriate configuration
 export const API_URL =

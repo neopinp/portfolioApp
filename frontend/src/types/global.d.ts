@@ -2,6 +2,9 @@
 
 // Fix for duplicate index signature for type 'string'
 declare global {
+  // React Native global variables
+  const __DEV__: boolean;
+
   // Override problematic NodeJS namespace to avoid conflicts
   namespace NodeJS {
     interface ProcessEnv {
