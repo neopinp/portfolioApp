@@ -32,7 +32,7 @@ Expo
 ## Backend - Developement
 npm start - production mode
 npm run dev - development mode 
+npx ngrok http 5000
 
 ## Frontend - Development View 
-npx ngrok http 5000
 npm expo start --tunnel (ethernet + wifi)
