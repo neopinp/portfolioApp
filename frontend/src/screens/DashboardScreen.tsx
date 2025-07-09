@@ -19,7 +19,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { api } from "../services/api";
 import { storage, STORAGE_KEYS } from "../utils/storage";
 import { Portfolio, OnboardingData, Asset } from "../types";
-import { usePortfolio } from "contexts/PortfolioContext";
+import { usePortfolio } from "../contexts/PortfolioContext";
 // Use a union type for items that could be either a portfolio or a "new portfolio" button
 type PortfolioOrNew = Portfolio | { id: number };
 

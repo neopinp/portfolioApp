@@ -1,4 +1,5 @@
 import * as SecureStore from 'expo-secure-store';
+import { Platform } from 'react-native';
 
 // Storage keys
 export const STORAGE_KEYS = {
@@ -19,6 +20,9 @@ const getUserSpecificKey = (userId: number | undefined, key: StorageKeyType): st
   return `${key}_${userId}`;
 };
 
+// Check if we're on web
+const isWeb = Platform.OS === 'web';
+
 // Storage utility class
 class Storage {
   // Set an item in storage
@@ -27,7 +31,14 @@ class Storage {
       const storageKey = getUserSpecificKey(userId, key);
       // Always stringify the value, regardless of type
       const stringValue = JSON.stringify(value);
-      await SecureStore.setItemAsync(storageKey, stringValue);
+      
+      if (isWeb) {
+        // Use localStorage for web
+        localStorage.setItem(storageKey, stringValue);
+      } else {
+        // Use SecureStore for mobile
+        await SecureStore.setItemAsync(storageKey, stringValue);
+      }
     } catch (error) {
       console.error('Error saving to storage:', error);
       throw error;
@@ -38,7 +49,16 @@ class Storage {
   async getItem<T>(key: StorageKeyType, userId?: number): Promise<T | null> {
     try {
       const storageKey = getUserSpecificKey(userId, key);
-      const value = await SecureStore.getItemAsync(storageKey);
+      let value: string | null;
+      
+      if (isWeb) {
+        // Use localStorage for web
+        value = localStorage.getItem(storageKey);
+      } else {
+        // Use SecureStore for mobile
+        value = await SecureStore.getItemAsync(storageKey);
+      }
+      
       if (value === null) return null;
       
       try {
@@ -58,7 +78,14 @@ class Storage {
   async removeItem(key: StorageKeyType, userId?: number): Promise<void> {
     try {
       const storageKey = getUserSpecificKey(userId, key);
-      await SecureStore.deleteItemAsync(storageKey);
+      
+      if (isWeb) {
+        // Use localStorage for web
+        localStorage.removeItem(storageKey);
+      } else {
+        // Use SecureStore for mobile
+        await SecureStore.deleteItemAsync(storageKey);
+      }
     } catch (error) {
       console.error('Error removing from storage:', error);
       throw error;
@@ -68,11 +95,15 @@ class Storage {
   // Clear all storage for a specific user
   async clearUserData(userId: number): Promise<void> {
     try {
-      await Promise.all(
-        Object.values(STORAGE_KEYS).map(key => 
-          SecureStore.deleteItemAsync(getUserSpecificKey(userId, key))
-        )
-      );
+      const keys = Object.values(STORAGE_KEYS).map(key => getUserSpecificKey(userId, key));
+      
+      if (isWeb) {
+        // Use localStorage for web
+        keys.forEach(key => localStorage.removeItem(key));
+      } else {
+        // Use SecureStore for mobile
+        await Promise.all(keys.map(key => SecureStore.deleteItemAsync(key)));
+      }
     } catch (error) {
       console.error('Error clearing user storage:', error);
       throw error;
@@ -82,11 +113,15 @@ class Storage {
   // Clear all storage
   async clearAll(): Promise<void> {
     try {
-      await Promise.all(
-        Object.values(STORAGE_KEYS).map(key => 
-          SecureStore.deleteItemAsync(key)
-        )
-      );
+      const keys = Object.values(STORAGE_KEYS);
+      
+      if (isWeb) {
+        // Use localStorage for web
+        keys.forEach(key => localStorage.removeItem(key));
+      } else {
+        // Use SecureStore for mobile
+        await Promise.all(keys.map(key => SecureStore.deleteItemAsync(key)));
+      }
     } catch (error) {
       console.error('Error clearing storage:', error);
       throw error;
