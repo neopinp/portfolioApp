@@ -10,10 +10,6 @@ config({ path: join(__dirname, '.env') });
 // This will not override existing variables from the frontend .env
 config({ path: join(__dirname, '..', '.env') });
 
-// Get API key from environment variables
-const apiKey = process.env.FINNHUB_API_KEY || 'DEMO_KEY';
-console.log(`Using Finnhub API key: ${apiKey.substring(0, 3)}...`);
-
 export default {
   name: "frontend",
   slug: "frontend",
@@ -44,7 +40,8 @@ export default {
     "expo-secure-store"
   ],
   extra: {
-    // Pass the API key to the app
-    FINNHUB_API_KEY: apiKey,
+    // Pass both API keys to the app
+    FINNHUB_API_KEY: process.env.FINNHUB_API_KEY || 'DEMO_KEY',
+    TWELVE_DATA_API_KEY: process.env.TWELVE_DATA_API_KEY || 'DEMO_KEY'
   }
 }; 

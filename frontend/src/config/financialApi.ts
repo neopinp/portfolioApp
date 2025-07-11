@@ -1,50 +1,58 @@
 import Constants from 'expo-constants';
 
-// Finnhub API Configuration
-// Register for a free API key at: https://finnhub.io/register
+// API Configuration
+export const FINNHUB_BASE_URL = "https://finnhub.io/api/v1";
+export const TWELVE_DATA_BASE_URL = "https://api.twelvedata.com";
 
-// Base URL for Finnhub API
-export const FINNHUB_BASE_URL = 'https://finnhub.io/api/v1';
-
-// Get API Key from environment variables
-// This function tries multiple methods to get the API key
-const getApiKey = (): string => {
+// Get API Keys from environment variables
+const getTwelveDataApiKey = (): string => {
   try {
-    // Method 1: Try to get from expo constants (from app.config.js)
-    const apiKeyFromExpo = Constants.expoConfig?.extra?.FINNHUB_API_KEY;
-    
+    const apiKeyFromExpo = Constants.expoConfig?.extra?.TWELVE_DATA_API_KEY;
     if (apiKeyFromExpo && apiKeyFromExpo !== 'DEMO_KEY') {
-      console.log('Using API key from Expo config');
       return apiKeyFromExpo;
     }
-    
-    // Method 2: Try to get directly from process.env (for development)
-    if (process.env.FINNHUB_API_KEY) {
-      console.log('Using API key from process.env');
-      return process.env.FINNHUB_API_KEY;
+    if (process.env.TWELVE_DATA_API_KEY) {
+      return process.env.TWELVE_DATA_API_KEY;
     }
-    
-    // No valid API key found
-    console.warn('⚠️ No valid FINNHUB_API_KEY found in environment variables');
-    console.warn('Please add your API key to .env file in the frontend directory');
-    return 'DEMO_KEY'; // Fallback key for development only
+    console.warn('⚠️ No valid TWELVE_DATA_API_KEY found');
+    return 'DEMO_KEY';
   } catch (error) {
-    console.error('Error getting API key:', error);
-    return 'DEMO_KEY'; // Fallback key for development only
+    console.error('Error getting Twelve Data API key:', error);
+    return 'DEMO_KEY';
   }
 };
 
-// Export the API key
-export const FINNHUB_API_KEY = getApiKey();
+const getFinnhubApiKey = (): string => {
+  try {
+    const apiKeyFromExpo = Constants.expoConfig?.extra?.FINNHUB_API_KEY;
+    if (apiKeyFromExpo && apiKeyFromExpo !== 'DEMO_KEY') {
+      return apiKeyFromExpo;
+    }
+    if (process.env.FINNHUB_API_KEY) {
+      return process.env.FINNHUB_API_KEY;
+    }
+    console.warn('⚠️ No valid FINNHUB_API_KEY found');
+    return 'DEMO_KEY';
+  } catch (error) {
+    console.error('Error getting Finnhub API key:', error);
+    return 'DEMO_KEY';
+  }
+};
 
-// Log first few characters of the API key for debugging
-console.log(`API Key configured: ${FINNHUB_API_KEY.substring(0, 3)}...`);
+// Export the API keys
+export const TWELVE_DATA_API_KEY = getTwelveDataApiKey();
+export const FINNHUB_API_KEY = getFinnhubApiKey();
 
 // Cache duration in milliseconds (5 minutes)
 export const CACHE_DURATION = 5 * 60 * 1000;
 
-// Rate limit (60 API calls per minute for free tier)
-export const RATE_LIMIT = {
-  maxCalls: 60,
-  perMinutes: 1
+// Rate limits
+export const TWELVE_DATA_RATE_LIMIT = {
+  maxCalls: 8,
+  perMinute: 1
+};
+
+export const FINNHUB_RATE_LIMIT = {
+  maxCalls: 30,
+  perMinute: 1
 }; 
