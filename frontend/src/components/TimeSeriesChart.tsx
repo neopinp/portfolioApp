@@ -21,7 +21,7 @@ interface TimeSeriesChartProps {
 export const TimeSeriesChart = ({ data, onPress }: TimeSeriesChartProps) => {
   const formattedValue =
     typeof data.value === "number" ? data.value.toLocaleString() : "0";
-  
+
   // Format dates for display
   const formatDate = (dateString: string): string => {
     if (!dateString) return "";
@@ -72,15 +72,11 @@ export const TimeSeriesChart = ({ data, onPress }: TimeSeriesChartProps) => {
                 />
               )}
             </CartesianChart>
-            
+
             {/* Date Labels */}
             <View style={styles.dateLabelsContainer}>
-              <Text style={styles.dateLabel}>
-                {formattedStart}
-              </Text>
-              <Text style={styles.dateLabel}>
-                {formattedEnd}
-              </Text>
+              <Text style={styles.dateLabel}>{formattedStart}</Text>
+              <Text style={styles.dateLabel}>{formattedEnd}</Text>
             </View>
           </View>
         ) : (

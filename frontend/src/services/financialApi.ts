@@ -243,8 +243,8 @@ export const getAssetHistoricalData = async (
     }));
     /* 
       [
-        {timestamp: 0, price: 180.2}
-        {timestamp: 1, price: 181.5}
+        {timestamp: 'Jul 1', price: 180.2}
+        {timestamp: 'Jul 2', price: 181.5}
       ]
       */
 
