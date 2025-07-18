@@ -12,7 +12,7 @@ import { Text, Icon, Overlay } from "@rneui/themed";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { COLORS } from "../constants/colors";
 import { PortfolioCard } from "../components/PortfolioCard";
-import { PortfolioChart } from "../components/PortfolioChart";
+import { PortfolioChart } from "../components/TimeSeriesChart";
 import { AppHeader } from "../components/AppHeader";
 import { BottomNavSpacer } from "../components/BottomNavSpacer";
 import { useAuth } from "../contexts/AuthContext";

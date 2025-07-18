@@ -24,7 +24,7 @@ export interface Holding {
   value?: number;
   change?: number;
   imageUrl?: string;
-  
+
   // Additional properties for real-time data
   quantity: number;
   purchasePrice: number;
@@ -44,7 +44,7 @@ export interface Asset {
   type?: string;
   sector?: string;
   imageUrl?: string;
-  
+
   // Additional detailed information
   marketCap?: string;
   sharesOutstanding?: string;
@@ -70,4 +70,17 @@ export interface OnboardingData {
   riskTolerance: number;
   investmentGoals: string;
   initialInvestment: number;
-} 
+}
+
+// Charting Specific Types
+
+export interface TimeSeriesPoint {
+  timestamp: number;
+  price: number;
+}
+
+export interface ChartData {
+  data: TimeSeriesPoint[];
+  startDate: string;
+  endDate: string;
+}

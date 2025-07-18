@@ -86,7 +86,7 @@ export const searchAssets = async (query: string): Promise<Asset[]> => {
     // Fetch detailed data for each asset
     if (limitedAssets.length > 0) {
       const detailedAssets = await getMultipleAssetDetails(
-        limitedAssets.map(asset => asset.symbol)
+        limitedAssets.map((asset) => asset.symbol)
       );
 
       // Update with detailed data
@@ -146,7 +146,9 @@ export const getAssetDetails = async (
 
     const price = quoteData.c;
     const previousClose = quoteData.pc;
-    const change = previousClose ? ((price - previousClose) / previousClose) * 100 : 0;
+    const change = previousClose
+      ? ((price - previousClose) / previousClose) * 100
+      : 0;
 
     const asset: Asset = {
       symbol,
@@ -155,11 +157,11 @@ export const getAssetDetails = async (
       price,
       change: parseFloat(change.toFixed(2)),
       riskScore: calculateRiskScore(profileData.finnhubIndustry),
-      sector: profileData.finnhubIndustry || 'N/A',
+      sector: profileData.finnhubIndustry || "N/A",
       type: "Stock",
 
       // Additional data from Finnhub
-      marketCap: profileData.marketCapitalization 
+      marketCap: profileData.marketCapitalization
         ? formatMarketCap(profileData.marketCapitalization * 1e6)
         : "N/A",
       sharesOutstanding: profileData.shareOutstanding
@@ -176,7 +178,9 @@ export const getAssetDetails = async (
         ? `${metricsData.metric.dividendYieldIndicatedAnnual.toFixed(2)}%`
         : "N/A",
       volume: quoteData.v?.toLocaleString() || "N/A",
-      avgVolume: metricsData.metric?.["10DayAverageTradingVolume"]?.toLocaleString() || "N/A",
+      avgVolume:
+        metricsData.metric?.["10DayAverageTradingVolume"]?.toLocaleString() ||
+        "N/A",
     };
 
     saveToCache(cacheKey, asset);
@@ -193,7 +197,11 @@ export const getAssetDetails = async (
 export const getAssetHistoricalData = async (
   symbol: string,
   timeRange: string
-): Promise<Array<{ x: number; y: number }> | null> => {
+): Promise<{
+  data: Array<{ timestamp: number; price: number }>;
+  startDate: string;
+  endDate: string;
+} | null> => {
   if (!symbol) return null;
 
   const cacheKey = `chart_${symbol}_${timeRange}`;
@@ -201,20 +209,21 @@ export const getAssetHistoricalData = async (
   if (cachedData) return cachedData;
 
   try {
-    // Convert timeRange to interval and outputsize for Twelve Data
     const { interval, outputsize, startDate } = getTimeSeriesParams(timeRange);
-    
-    // Build the URL with proper parameters
+    const endDate = new Date().toISOString().split("T")[0]; // Today's date
+
     let url = `${TWELVE_DATA_BASE_URL}/time_series?symbol=${encodeURIComponent(symbol)}&interval=${interval}&apikey=${TWELVE_DATA_API_KEY}`;
-    
+
     // If we have a start date, use that instead of outputsize
     if (startDate) {
-      url += `&start_date=${startDate}&end_date=${new Date().toISOString().split('T')[0]}`;
+      url += `&start_date=${startDate}&end_date=${endDate}`;
     } else {
       url += `&outputsize=${outputsize}`;
     }
 
-    console.log(`Fetching historical data for ${symbol} with interval ${interval}`);
+    console.log(
+      `Fetching historical data for ${symbol} with interval ${interval}`
+    );
     const response = await fetch(url);
     const data = await response.json();
 
@@ -227,49 +236,126 @@ export const getAssetHistoricalData = async (
       return null;
     }
 
-    // Transform the data into the required format
-    // Twelve Data returns newest first, reverse to find oldest first
-    const chartData = data.values
-      .reverse() 
-      .map((item: any, index: number) => ({
-        x: index,
-        y: parseFloat(item.close)
-      }));
-
-      /* 
+    // CartesianChart Transformation
+    const chartData = data.values.reverse().map((item: any, index: number) => ({
+      timestamp: new Date(item.datetime).getTime(),
+      price: parseFloat(item.close),
+    }));
+    /* 
       [
-        {x: 0, y: 180.2
-        {x: 1, y: 181.5}
+        {timestamp: 0, price: 180.2}
+        {timestamp: 1, price: 181.5}
       ]
       */
 
-    // Only cache if we got valid data
+    // Return chartData, endDate, startDate for the labels
+    const actualStartDate =
+      startDate ||
+      (data.values.length > 0
+        ? data.values[data.values.length - 1].datetime.split(" ")[0]
+        : endDate);
+
+    const result = {
+      data: chartData,
+      startDate: actualStartDate,
+      endDate: endDate,
+    };
+
     if (chartData.length > 0) {
-      saveToCache(cacheKey, chartData);
+      saveToCache(cacheKey, result);
     }
 
-    return chartData;
+    return result;
   } catch (error) {
     console.error("Error fetching historical data:", error);
     return null;
   }
 };
 
+// Batching Historical Data (portfolio dashboard & portfolio screen) *IMPLEMENT*
+
+// Helper function to get time series parameters
+const getTimeSeriesParams = (
+  timeRange: string
+): { interval: string; outputsize: number; startDate?: string } => {
+  const now = new Date();
+  const startDate = new Date();
+
+  switch (timeRange) {
+    case "1D":
+      // 1 day, 5-min intervals = 108 points
+      return { interval: "5min", outputsize: 108 };
+
+    case "1W":
+      startDate.setDate(now.getDate() - 7);
+      return {
+        interval: "1h",
+        outputsize: 168,
+        startDate: startDate.toISOString().split("T")[0],
+      };
+
+    case "1M":
+      startDate.setMonth(now.getMonth() - 1);
+      return {
+        interval: "1day",
+        outputsize: 30,
+        startDate: startDate.toISOString().split("T")[0],
+      };
+
+    case "3M":
+      startDate.setMonth(now.getMonth() - 3);
+      return {
+        interval: "1day",
+        outputsize: 66,
+        startDate: startDate.toISOString().split("T")[0],
+      };
+
+    case "6M":
+      startDate.setMonth(now.getMonth() - 6);
+      return {
+        interval: "1day",
+        outputsize: 128,
+        startDate: startDate.toISOString().split("T")[0],
+      };
+
+    case "1Y":
+      startDate.setFullYear(now.getFullYear() - 1);
+      return {
+        interval: "1day",
+        outputsize: 253,
+        startDate: startDate.toISOString().split("T")[0],
+      };
+
+    case "5Y":
+      startDate.setFullYear(now.getFullYear() - 5);
+      return {
+        interval: "1day",
+        outputsize: 1000,
+        startDate: startDate.toISOString().split("T")[0],
+      };
+
+    default:
+      // Default to 30 days of daily data
+      startDate.setDate(now.getDate() - 30);
+      return {
+        interval: "1day",
+        outputsize: 30,
+        startDate: startDate.toISOString().split("T")[0],
+      };
+  }
+};
+
 /**
- * Get multiple assets' details in batch
+ * Batching multiple assets
  */
 export const getMultipleAssetDetails = async (
   symbols: string[]
 ): Promise<Asset[]> => {
   if (!symbols || symbols.length === 0) return [];
 
-  // Use Promise.all to fetch all assets in parallel
-  const assetPromises = symbols.map((symbol) =>
-    getAssetDetails(symbol)
-  );
+  const assetPromises = symbols.map((symbol) => getAssetDetails(symbol));
   const assets = await Promise.all(assetPromises);
 
-  // Filter out null values
   return assets.filter((asset): asset is Asset => asset !== null);
 };
 
@@ -289,75 +375,6 @@ const formatShares = (shares: number): string => {
   if (shares >= 1e6) return `${(shares / 1e6).toFixed(2)}M`;
   if (shares >= 1e3) return `${(shares / 1e3).toFixed(2)}K`;
   return shares.toFixed(2);
-};
-
-// Helper function to get time series parameters
-const getTimeSeriesParams = (timeRange: string): { interval: string; outputsize: number; startDate?: string } => {
-  const now = new Date();
-  const startDate = new Date();
-
-  switch (timeRange) {
-    case '1D':
-      // 1 day, 5-min intervals = 108 points
-      return { interval: '5min', outputsize: 108 };
-    
-    case '1W':
-      startDate.setDate(now.getDate() - 7);
-      return { 
-        interval: '1h', 
-        outputsize: 168,
-        startDate: startDate.toISOString().split('T')[0]
-      };
-    
-    case '1M':
-      startDate.setMonth(now.getMonth() - 1);
-      return { 
-        interval: '1day',
-        outputsize: 30,
-        startDate: startDate.toISOString().split('T')[0]
-      };
-    
-    case '3M':
-      startDate.setMonth(now.getMonth() - 3);
-      return { 
-        interval: '1day',
-        outputsize: 66,
-        startDate: startDate.toISOString().split('T')[0]
-      };
-    
-    case '6M':
-      startDate.setMonth(now.getMonth() - 6);
-      return { 
-        interval: '1day',
-        outputsize: 128,
-        startDate: startDate.toISOString().split('T')[0]
-      };
-    
-    case '1Y':
-      startDate.setFullYear(now.getFullYear() - 1);
-      return { 
-        interval: '1day',
-        outputsize: 253,
-        startDate: startDate.toISOString().split('T')[0]
-      };
-    
-    case '5Y':
-      startDate.setFullYear(now.getFullYear() - 5);
-      return { 
-        interval: '1day',
-        outputsize: 1000,
-        startDate: startDate.toISOString().split('T')[0]
-      };
-
-    default:
-      // Default to 30 days of daily data
-      startDate.setDate(now.getDate() - 30);
-      return { 
-        interval: '1day',
-        outputsize: 30,
-        startDate: startDate.toISOString().split('T')[0]
-      };
-  }
 };
 
 /*

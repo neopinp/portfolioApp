@@ -14,7 +14,7 @@ import { Text, Input, Icon, Button } from "@rneui/themed";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
 import { COLORS } from "../constants/colors";
-import { PortfolioChart } from "../components/PortfolioChart";
+import { TimeSeriesChart } from "../components/TimeSeriesChart";
 import { AppHeader } from "../components/AppHeader";
 import { BottomNavSpacer } from "../components/BottomNavSpacer";
 import { AssetSearchModal } from "../components/AssetSearchModal";
@@ -405,7 +405,7 @@ export const AssetsScreen = ({ route, navigation }: any) => {
               </View>
             </View>
 
-            <PortfolioChart
+            <TimeSeriesChart
               data={{
                 value: selectedAsset.price || 0,
                 change: selectedAsset.change || 0,
@@ -441,15 +441,21 @@ export const AssetsScreen = ({ route, navigation }: any) => {
                     <View style={styles.keyMetricsRow}>
                       <View style={styles.keyMetric}>
                         <Text style={styles.metricLabel}>Market Cap</Text>
-                        <Text style={styles.metricValue}>{selectedAsset.marketCap || "N/A"}</Text>
+                        <Text style={styles.metricValue}>
+                          {selectedAsset.marketCap || "N/A"}
+                        </Text>
                       </View>
                       <View style={styles.keyMetric}>
                         <Text style={styles.metricLabel}>P/E Ratio</Text>
-                        <Text style={styles.metricValue}>{selectedAsset.peRatio || "N/A"}</Text>
+                        <Text style={styles.metricValue}>
+                          {selectedAsset.peRatio || "N/A"}
+                        </Text>
                       </View>
                     </View>
                     <View style={styles.tapForMoreContainer}>
-                      <Text style={styles.tapForMoreText}>Tap for more details</Text>
+                      <Text style={styles.tapForMoreText}>
+                        Tap for more details
+                      </Text>
                     </View>
                   </View>
                 </Animated.View>
@@ -653,8 +659,8 @@ const styles = StyleSheet.create({
     color: COLORS.textSecondary,
     marginTop: 4,
     flex: 1,
-    flexWrap: 'wrap',
-    maxWidth: '80%',
+    flexWrap: "wrap",
+    maxWidth: "80%",
   },
   assetSector: {
     fontSize: 12,
@@ -765,7 +771,7 @@ const styles = StyleSheet.create({
   keyMetric: {
     alignItems: "center",
     padding: 10,
-    marginRight: 25
+    marginRight: 25,
   },
   metricLabel: {
     fontSize: 12,
