@@ -202,11 +202,27 @@ export const getAssetHistoricalData = async (
 
   try {
     // Convert timeRange to interval and outputsize for Twelve Data
-    const { interval, outputsize } = getTimeSeriesParams(timeRange);
+    const { interval, outputsize, startDate } = getTimeSeriesParams(timeRange);
     
-    const url = `${TWELVE_DATA_BASE_URL}/time_series?symbol=${encodeURIComponent(symbol)}&interval=${interval}&outputsize=${outputsize}&apikey=${TWELVE_DATA_API_KEY}`;
+    // Build the URL with proper parameters
+    let url = `${TWELVE_DATA_BASE_URL}/time_series?symbol=${encodeURIComponent(symbol)}&interval=${interval}&apikey=${TWELVE_DATA_API_KEY}`;
+    
+    // If we have a start date, use that instead of outputsize
+    if (startDate) {
+      url += `&start_date=${startDate}&end_date=${new Date().toISOString().split('T')[0]}`;
+    } else {
+      url += `&outputsize=${outputsize}`;
+    }
+
+    console.log(`Fetching historical data for ${symbol} with interval ${interval}`);
     const response = await fetch(url);
     const data = await response.json();
+
+    // Check for API errors
+    if (data.status === "error") {
+      console.error("Twelve Data API error:", data.message);
+      return null;
+    }
 
     if (!data.values || !Array.isArray(data.values)) {
       console.error("Invalid time series response:", data);
@@ -221,7 +237,11 @@ export const getAssetHistoricalData = async (
         y: parseFloat(item.close)
       }));
 
-    saveToCache(cacheKey, chartData);
+    // Only cache if we got valid data
+    if (chartData.length > 0) {
+      saveToCache(cacheKey, chartData);
+    }
+
     return chartData;
   } catch (error) {
     console.error("Error fetching historical data:", error);
@@ -266,22 +286,77 @@ const formatShares = (shares: number): string => {
 };
 
 // Helper function to get time series parameters
-const getTimeSeriesParams = (timeRange: string): { interval: string; outputsize: number } => {
+const getTimeSeriesParams = (timeRange: string): { interval: string; outputsize: number; startDate?: string } => {
+  const now = new Date();
+  const startDate = new Date();
+
   switch (timeRange) {
     case '1D':
-      return { interval: '5min', outputsize: 108 }; // 108 5-min intervals in a trading day
+      // For 1 day, use 5-min intervals = 108 points
+      return { interval: '5min', outputsize: 108 };
+    
     case '1W':
-      return { interval: '15min', outputsize: 168 }; // ~168 15-min intervals in a trading week
+      // For 1 week, use 15-min intervals = 168 points
+      startDate.setDate(now.getDate() - 7);
+      return { 
+        interval: '15min', 
+        outputsize: 168,
+        startDate: startDate.toISOString().split('T')[0]
+      };
+    
     case '1M':
-      return { interval: '1h', outputsize: 168 }; // ~168 hours in a trading month
+      // For 1 month, use 1-hour intervals
+      startDate.setMonth(now.getMonth() - 1);
+      return { 
+        interval: '1h',
+        outputsize: 168,
+        startDate: startDate.toISOString().split('T')[0]
+      };
+    
     case '3M':
-      return { interval: '1day', outputsize: 66 }; // ~66 trading days in 3 months
+      // For 3 months, use daily data
+      startDate.setMonth(now.getMonth() - 3);
+      return { 
+        interval: '1day',
+        outputsize: 66,
+        startDate: startDate.toISOString().split('T')[0]
+      };
+    
     case '6M':
-      return { interval: '1day', outputsize: 128 }; // ~128 trading days in 6 months
+      // For 6 months, use daily data
+      startDate.setMonth(now.getMonth() - 6);
+      return { 
+        interval: '1day',
+        outputsize: 128,
+        startDate: startDate.toISOString().split('T')[0]
+      };
+    
     case '1Y':
-      return { interval: '1day', outputsize: 253 }; // ~253 trading days in a year
+      // For 1 year, use daily data
+      startDate.setFullYear(now.getFullYear() - 1);
+      return { 
+        interval: '1day',
+        outputsize: 253,
+        startDate: startDate.toISOString().split('T')[0]
+      };
+    
+    case '5Y':
+      // For 5 years, use daily data but limit to 1000 points to stay well under the 5000 limit
+      startDate.setFullYear(now.getFullYear() - 5);
+      return { 
+        interval: '1day',
+        outputsize: 1000,
+        startDate: startDate.toISOString().split('T')[0]
+      };
+
     default:
-      return { interval: '1day', outputsize: 30 };
+      // Default to 30 days of daily data
+      startDate.setDate(now.getDate() - 30);
+      return { 
+        interval: '1day',
+        outputsize: 30,
+        startDate: startDate.toISOString().split('T')[0]
+      };
   }
 };
 
