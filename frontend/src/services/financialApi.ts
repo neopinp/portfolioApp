@@ -218,24 +218,30 @@ export const getAssetHistoricalData = async (
     const response = await fetch(url);
     const data = await response.json();
 
-    // Check for API errors
     if (data.status === "error") {
       console.error("Twelve Data API error:", data.message);
       return null;
     }
-
     if (!data.values || !Array.isArray(data.values)) {
       console.error("Invalid time series response:", data);
       return null;
     }
 
     // Transform the data into the required format
+    // Twelve Data returns newest first, reverse to find oldest first
     const chartData = data.values
-      .reverse() // Twelve Data returns newest first, we want oldest first
+      .reverse() 
       .map((item: any, index: number) => ({
         x: index,
         y: parseFloat(item.close)
       }));
+
+      /* 
+      [
+        {x: 0, y: 180.2
+        {x: 1, y: 181.5}
+      ]
+      */
 
     // Only cache if we got valid data
     if (chartData.length > 0) {
@@ -292,29 +298,26 @@ const getTimeSeriesParams = (timeRange: string): { interval: string; outputsize:
 
   switch (timeRange) {
     case '1D':
-      // For 1 day, use 5-min intervals = 108 points
+      // 1 day, 5-min intervals = 108 points
       return { interval: '5min', outputsize: 108 };
     
     case '1W':
-      // For 1 week, use 15-min intervals = 168 points
       startDate.setDate(now.getDate() - 7);
       return { 
-        interval: '15min', 
+        interval: '1h', 
         outputsize: 168,
         startDate: startDate.toISOString().split('T')[0]
       };
     
     case '1M':
-      // For 1 month, use 1-hour intervals
       startDate.setMonth(now.getMonth() - 1);
       return { 
-        interval: '1h',
-        outputsize: 168,
+        interval: '1day',
+        outputsize: 30,
         startDate: startDate.toISOString().split('T')[0]
       };
     
     case '3M':
-      // For 3 months, use daily data
       startDate.setMonth(now.getMonth() - 3);
       return { 
         interval: '1day',
@@ -323,7 +326,6 @@ const getTimeSeriesParams = (timeRange: string): { interval: string; outputsize:
       };
     
     case '6M':
-      // For 6 months, use daily data
       startDate.setMonth(now.getMonth() - 6);
       return { 
         interval: '1day',
@@ -332,7 +334,6 @@ const getTimeSeriesParams = (timeRange: string): { interval: string; outputsize:
       };
     
     case '1Y':
-      // For 1 year, use daily data
       startDate.setFullYear(now.getFullYear() - 1);
       return { 
         interval: '1day',
@@ -341,7 +342,6 @@ const getTimeSeriesParams = (timeRange: string): { interval: string; outputsize:
       };
     
     case '5Y':
-      // For 5 years, use daily data but limit to 1000 points to stay well under the 5000 limit
       startDate.setFullYear(now.getFullYear() - 5);
       return { 
         interval: '1day',
