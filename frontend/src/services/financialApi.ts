@@ -80,7 +80,6 @@ export const searchAssets = async (query: string): Promise<Asset[]> => {
         riskScore: calculateRiskScore(item.type),
       }));
 
-    // Limit to first 5 results
     const limitedAssets = assets.slice(0, 5);
 
     // Fetch detailed data for each asset
@@ -192,7 +191,7 @@ export const getAssetDetails = async (
 };
 
 /**
- * Get historical chart data using Twelve Data
+ * Get HISTORICAL chart data using Twelve Data
  */
 export const getAssetHistoricalData = async (
   symbol: string,
@@ -272,7 +271,7 @@ export const getAssetHistoricalData = async (
   }
 };
 
-// Batching Historical Data (portfolio dashboard & portfolio screen) *IMPLEMENT*
+// Batching HISTORICAL Data (portfolio dashboard & portfolio screen) *IMPLEMENT*
 
 // Helper function to get time series parameters
 const getTimeSeriesParams = (
@@ -346,7 +345,7 @@ const getTimeSeriesParams = (
 };
 
 /**
- * Batching multiple assets
+ * Batching multiple asset details and assets FINNHUB - NOT HISTORICAL
  */
 export const getMultipleAssetDetails = async (
   symbols: string[]

@@ -25,11 +25,13 @@
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "react-native": "^0.79.5",
+    "react-native-chart-kit": "^6.12.0",
     "react-native-safe-area-context": "5.4.0",
     "react-native-screens": "~4.11.1",
     "react-native-svg": "^15.11.2",
     "react-native-web": "^0.20.0",
-    "victory-native": "^41.17.4"
+    "victory-native": "^41.17.4",
+    "react-native-wagmi-charts": "^2.3.0"
   },
   "devDependencies": {
     "@babel/core": "^7.25.2",

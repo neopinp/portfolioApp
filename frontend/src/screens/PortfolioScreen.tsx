@@ -9,7 +9,7 @@ import {
 import { Text } from "@rneui/themed";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { COLORS } from "../constants/colors";
-import { PortfolioChart } from "../components/TimeSeriesChart";
+import { TimeSeriesChart } from "../components/TimeSeriesChart";
 import { HoldingItem } from "../components/HoldingItem";
 import { AppHeader } from "../components/AppHeader";
 import { Icon } from "@rneui/themed";
@@ -18,15 +18,17 @@ import { usePortfolio } from "../contexts/PortfolioContext";
 import { Holding, Portfolio as PortfolioType } from "../types";
 import { api } from "../services/api";
 import { BottomNavSpacer } from "../components/BottomNavSpacer";
+import { getAssetHistoricalData } from "../services/financialApi";
+import { ChartData } from "../types";
 
 export const PortfolioScreen = ({ route, navigation }: any) => {
   // Get portfolioId from route params or use the selected portfolio from context
   const { portfolioId: routePortfolioId } = route.params || {};
   const { selectedPortfolio: contextPortfolio } = usePortfolio();
-  
+
   // Use the portfolioId from route params if available, otherwise use the one from context
-  const portfolioId = routePortfolioId || (contextPortfolio?.id);
-  
+  const portfolioId = routePortfolioId || contextPortfolio?.id;
+
   const { user } = useAuth();
   const [timeRanges] = useState(["1D", "1W", "1M", "3M", "6M"]);
   const [selectedRange, setSelectedRange] = useState("1M");
@@ -46,23 +48,58 @@ export const PortfolioScreen = ({ route, navigation }: any) => {
     holdings: [],
   });
 
+  const [chartData, setChartData] = useState<ChartData | undefined>();
+
+  // Add function to fetch historical data
+  const loadChartData = async (holdings: Holding[], timeRange: string) => {
+    if (!holdings || holdings.length === 0) {
+      setChartData(undefined);
+      return;
+    }
+
+    try {
+      // For now, just use the first holding's data for the chart
+      const mainHolding = holdings[0];
+      const symbol = mainHolding.symbol || mainHolding.asset_symbol;
+      
+      if (!symbol) {
+        console.error("No symbol found for holding");
+        return;
+      }
+
+      const historicalData = await getAssetHistoricalData(symbol, timeRange);
+      if (historicalData) {
+        setChartData(historicalData);
+      }
+    } catch (error) {
+      console.error("Error loading chart data:", error);
+    }
+  };
+
+  // Add effect to load chart data when holdings or time range changes
+  useEffect(() => {
+    loadChartData(portfolio.holdings, selectedRange);
+  }, [portfolio.holdings, selectedRange]);
+
   // Fetch portfolio data when the component mounts or portfolioId changes
   useEffect(() => {
     const fetchPortfolioData = async () => {
       // If no portfolioId is available, show an error
       if (!portfolioId) {
-        setError("No portfolio selected. Please select a portfolio from the Dashboard.");
+        setError(
+          "No portfolio selected. Please select a portfolio from the Dashboard."
+        );
         setLoading(false);
         return;
       }
-      
+
       try {
         setLoading(true);
         setError(null);
-        
+
         // Fetch the portfolio data using the API
         const response = await api.portfolios.getOne(portfolioId);
-        
+
         // Transform the response to match our expected format
         const portfolioData = {
           name: response.portfolio?.name || "Portfolio",
@@ -70,7 +107,7 @@ export const PortfolioScreen = ({ route, navigation }: any) => {
           change: 0, // Default to 0 if not available
           holdings: response.portfolio?.holdings || [],
         };
-        
+
         setPortfolio(portfolioData);
       } catch (err) {
         console.error("Error fetching portfolio:", err);
@@ -83,12 +120,14 @@ export const PortfolioScreen = ({ route, navigation }: any) => {
     fetchPortfolioData();
   }, [portfolioId]);
 
-  const chartData = {
+  // Update the chart data object
+  const chartDataProps = {
     value: portfolio.value,
     change: portfolio.change,
     timeRanges,
     selectedRange,
     onRangeSelect: setSelectedRange,
+    chartData: chartData, // Add the historical data
   };
 
   const handleAddHolding = () => {
@@ -123,7 +162,7 @@ export const PortfolioScreen = ({ route, navigation }: any) => {
       <AppHeader title={portfolio.name} username={user?.username || "User"} />
       <ScrollView style={styles.scrollView}>
         <View style={styles.section}>
-          <PortfolioChart data={chartData} />
+          <TimeSeriesChart data={chartDataProps} />
         </View>
 
         <View style={styles.section}>
@@ -150,7 +189,7 @@ export const PortfolioScreen = ({ route, navigation }: any) => {
           {/* Add news items here */}
           <Text style={styles.emptyText}>No news available at this time.</Text>
         </View>
-        
+
         {/* Add spacer at the bottom to prevent content from being hidden behind the nav bar */}
         <BottomNavSpacer extraSpace={20} />
       </ScrollView>

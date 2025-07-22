@@ -14,6 +14,7 @@ import { Text, Input, Icon, Button } from "@rneui/themed";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
 import { COLORS } from "../constants/colors";
+import { POPULAR_SYMBOLS } from "../constants/assets";
 import { TimeSeriesChart } from "../components/TimeSeriesChart";
 import { AppHeader } from "../components/AppHeader";
 import { BottomNavSpacer } from "../components/BottomNavSpacer";
@@ -22,7 +23,13 @@ import { useAuth } from "../contexts/AuthContext";
 import { api } from "../services/api";
 import { Asset } from "../types";
 import { usePortfolio } from "../contexts/PortfolioContext";
-import { getMultipleAssetDetails } from "../services/financialApi";
+import {
+  getAssetDetails,
+  getMultipleAssetDetails,
+  getAssetHistoricalData,
+} from "../services/financialApi";
+import { ChartData } from "../types";
+
 
 export const AssetsScreen = ({ route, navigation }: any) => {
   const { portfolioId: routePortfolioId } = route.params || {};
@@ -43,22 +50,16 @@ export const AssetsScreen = ({ route, navigation }: any) => {
   const [refreshing, setRefreshing] = useState(false);
   const [topMovers, setTopMovers] = useState<Asset[]>([]);
   const [error, setError] = useState<string | null>(null);
+  const [chartData, setChartData] = useState<ChartData | null>(null);
+  const [isLoadingChart, setIsLoadingChart] = useState(false);
 
   // Flippable card state and animations
   const [showDetailedInfo, setShowDetailedInfo] = useState(false);
   const [flipAnimation] = useState(new Animated.Value(0));
   const [heightAnimation] = useState(new Animated.Value(120));
 
-  // Default symbols for top movers
-  const defaultSymbols = [
-    "AAPL",
-    "MSFT",
-    "GOOGL",
-    "AMZN",
-    "TSLA",
-    "META",
-    "NVDA",
-  ];
+  // Default symbols for "Top Movers"
+  const defaultSymbols = POPULAR_SYMBOLS;
 
   // Load top movers when screen is focused
   useFocusEffect(
@@ -67,51 +68,89 @@ export const AssetsScreen = ({ route, navigation }: any) => {
     }, [])
   );
 
-  // Load top movers data from Finnhub
+  // Load top movers data from Finnhub - use Popular Stocks for now
   const loadTopMovers = async () => {
     try {
       setIsLoading(true);
       setError(null);
 
       const assets = await getMultipleAssetDetails(defaultSymbols);
-
-      // Sort by absolute change percentage to get the actual top movers
       const sortedAssets = assets.sort((a, b) => {
         return Math.abs(b.change) - Math.abs(a.change);
       });
 
-      setTopMovers(sortedAssets.slice(0, 5)); // Take top 5 movers
-
-      // If we had a selected asset, refresh its data too with detailed information
-      if (selectedAsset) {
-        try {
-          const [updatedAsset] = await getMultipleAssetDetails([
-            selectedAsset.symbol,
-          ]);
-          if (updatedAsset) {
-            setSelectedAsset(updatedAsset);
-          }
-        } catch (err) {
-          console.error(
-            `Error refreshing selected asset ${selectedAsset.symbol}:`,
-            err
-          );
-          // Keep the existing selected asset if refresh fails
-        }
-      }
-    } catch (err) {
-      console.error("Error loading top movers:", err);
+      setTopMovers(sortedAssets.slice(0, 5));
+    } catch (error) {
+      console.error("Error loading top movers:", error);
       setError("Failed to load market data. Please try again.");
     } finally {
       setIsLoading(false);
     }
   };
 
-  // Handle pull-to-refresh
-  const onRefresh = async () => {
-    setRefreshing(true);
-    await loadTopMovers();
-    setRefreshing(false);
+  // Handle time range selection changes
+  const handleTimeRangeChange = async (newRange: string) => {
+    setSelectedRange(newRange);
+
+    // If we have a selected asset, reload chart data with new time range
+    if (selectedAsset) {
+      try {
+        setIsLoadingChart(true);
+        const historicalData = await getAssetHistoricalData(
+          selectedAsset.symbol,
+          newRange
+        );
+        setChartData(historicalData);
+      } catch (error) {
+        console.error(
+          `Error loading chart data for ${selectedAsset.symbol}:`,
+          error
+        );
+        setChartData(null);
+      } finally {
+        setIsLoadingChart(false);
+      }
+    }
+  };
+
+  // getAssetDetails & getAssetHistoricalData
+  const handleAssetSelection = async (asset: Asset) => {
+    try {
+      setIsLoading(true);
+      const detailed = await getAssetDetails(asset.symbol);
+      const finalAsset = detailed || asset;
+
+      setSelectedAsset(finalAsset);
+      await loadChartData(finalAsset); // Use finalAsset instead of original asset
+    } catch (error) {
+      console.error(`Error in handleAssetSelection:`, error);
+      // Fallback to original asset if detailed fetch fails
+      setSelectedAsset(asset);
+      await loadChartData(asset);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+  const loadChartData = async (asset: Asset) => {
+    try {
+      setIsLoadingChart(true);
+      const historicalData = await getAssetHistoricalData(
+        asset.symbol,
+        selectedRange
+      );
+      setChartData(historicalData);
+    } catch (error) {
+      console.error(`Error loading chart data for ${asset.symbol}:`, error);
+      setChartData(null);
+    } finally {
+      setIsLoadingChart(false);
+    }
+  };
+
+  // strictly for AssetSearchModal
+  const handleSearchSelect = async (asset: Asset) => {
+    await handleAssetSelection(asset);
+    setSearchModalVisible(false);
   };
 
   const renderMoverCard = ({ item }: { item: Asset }) => (
@@ -120,7 +159,7 @@ export const AssetsScreen = ({ route, navigation }: any) => {
         styles.moverCard,
         selectedAsset?.symbol === item.symbol && styles.selectedMoverCard,
       ]}
-      onPress={() => setSelectedAsset(item)}
+      onPress={() => handleAssetSelection(item)}
     >
       <Text style={styles.symbolText}>{item.symbol}</Text>
       <Text style={styles.priceText}>${item.price?.toFixed(2) || "0.00"}</Text>
@@ -138,31 +177,6 @@ export const AssetsScreen = ({ route, navigation }: any) => {
 
   const handleSearch = () => {
     setSearchModalVisible(true);
-  };
-
-  const handleSelectAssetFromSearch = async (asset: Asset) => {
-    try {
-      // Always fetch complete data for the selected asset
-      setIsLoading(true);
-      const [detailedAsset] = await getMultipleAssetDetails([asset.symbol]);
-
-      if (detailedAsset) {
-        setSelectedAsset(detailedAsset);
-      } else {
-        setSelectedAsset(asset);
-        console.warn(
-          `Could not fetch detailed information for ${asset.symbol}`
-        );
-      }
-
-      setSearchModalVisible(false);
-    } catch (err) {
-      console.error("Error getting asset details:", err);
-      Alert.alert("Error", "Failed to get asset details. Please try again.");
-      setSelectedAsset(asset); // Fall back to the basic asset data
-    } finally {
-      setIsLoading(false);
-    }
   };
 
   const handleBuyAsset = () => {
@@ -224,25 +238,6 @@ export const AssetsScreen = ({ route, navigation }: any) => {
       duration: 300,
       useNativeDriver: false,
     }).start();
-  };
-
-  // Animation interpolations
-  const frontInterpolate = flipAnimation.interpolate({
-    inputRange: [0, 180],
-    outputRange: ["0deg", "180deg"],
-  });
-
-  const backInterpolate = flipAnimation.interpolate({
-    inputRange: [0, 180],
-    outputRange: ["180deg", "360deg"],
-  });
-
-  const frontAnimatedStyle = {
-    transform: [{ rotateY: frontInterpolate }],
-  };
-
-  const backAnimatedStyle = {
-    transform: [{ rotateY: backInterpolate }],
   };
 
   const handleAddToPortfolio = async () => {
@@ -311,9 +306,36 @@ export const AssetsScreen = ({ route, navigation }: any) => {
       setIsAddingAsset(false);
     }
   };
+  // Handle pull-to-refresh
+  const onRefresh = async () => {
+    setRefreshing(true);
+    await loadTopMovers();
+    if (selectedAsset) {
+      await handleAssetSelection(selectedAsset);
+    }
+    setRefreshing(false);
+  };
 
   // Determine if we're in "add to portfolio" mode
   const isAddToPortfolioMode = !!portfolioId;
+  // Animation interpolations
+  const frontInterpolate = flipAnimation.interpolate({
+    inputRange: [0, 180],
+    outputRange: ["0deg", "180deg"],
+  });
+
+  const backInterpolate = flipAnimation.interpolate({
+    inputRange: [0, 180],
+    outputRange: ["180deg", "360deg"],
+  });
+
+  const frontAnimatedStyle = {
+    transform: [{ rotateY: frontInterpolate }],
+  };
+
+  const backAnimatedStyle = {
+    transform: [{ rotateY: backInterpolate }],
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -334,7 +356,7 @@ export const AssetsScreen = ({ route, navigation }: any) => {
       >
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Top Market Movers</Text>
+            <Text style={styles.sectionTitle}>Popular Stocks</Text>
             <TouchableOpacity onPress={handleSearch}>
               <Icon
                 name="search"
@@ -411,9 +433,23 @@ export const AssetsScreen = ({ route, navigation }: any) => {
                 change: selectedAsset.change || 0,
                 timeRanges,
                 selectedRange,
-                onRangeSelect: setSelectedRange,
+                onRangeSelect: handleTimeRangeChange,
+                chartData: chartData || undefined,
               }}
             />
+
+            {isLoadingChart && (
+              <View style={styles.chartLoadingContainer}>
+                <ActivityIndicator
+                  color={COLORS.textPink}
+                  size="small"
+                  style={styles.chartLoader}
+                />
+                <Text style={styles.chartLoadingText}>
+                  Loading chart data...
+                </Text>
+              </View>
+            )}
 
             {/* Flippable Asset Details Card */}
             <Animated.View
@@ -578,7 +614,7 @@ export const AssetsScreen = ({ route, navigation }: any) => {
       <AssetSearchModal
         visible={searchModalVisible}
         onClose={() => setSearchModalVisible(false)}
-        onSelectAsset={handleSelectAssetFromSearch}
+        onSelectAsset={handleSearchSelect}
       />
     </SafeAreaView>
   );
@@ -729,6 +765,20 @@ const styles = StyleSheet.create({
     backgroundColor: COLORS.primary,
     paddingHorizontal: 20,
     borderRadius: 8,
+  },
+  chartLoadingContainer: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    marginTop: 20,
+    paddingVertical: 10,
+  },
+  chartLoader: {
+    marginRight: 10,
+  },
+  chartLoadingText: {
+    fontSize: 14,
+    color: COLORS.textSecondary,
   },
   assetDetailsContainer: {
     padding: 20,

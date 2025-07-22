@@ -12,7 +12,7 @@ import { Text, Icon, Overlay } from "@rneui/themed";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { COLORS } from "../constants/colors";
 import { PortfolioCard } from "../components/PortfolioCard";
-import { PortfolioChart } from "../components/TimeSeriesChart";
+import { TimeSeriesChart } from "../components/TimeSeriesChart";
 import { AppHeader } from "../components/AppHeader";
 import { BottomNavSpacer } from "../components/BottomNavSpacer";
 import { useAuth } from "../contexts/AuthContext";
@@ -20,6 +20,8 @@ import { api } from "../services/api";
 import { storage, STORAGE_KEYS } from "../utils/storage";
 import { Portfolio, OnboardingData, Asset } from "../types";
 import { usePortfolio } from "../contexts/PortfolioContext";
+import { getAssetHistoricalData } from "../services/financialApi";
+
 // Use a union type for items that could be either a portfolio or a "new portfolio" button
 type PortfolioOrNew = Portfolio | { id: number };
 
@@ -47,6 +49,7 @@ export const DashboardScreen = ({ navigation }: any) => {
   const [flipAnimation] = useState(new Animated.Value(0));
   const [heightAnimation] = useState(new Animated.Value(180));
   const scrollViewRef = useRef(null);
+  const [chartData, setChartData] = useState<any | undefined>();
 
   // Initial load of portfolios
   useEffect(() => {
@@ -302,13 +305,45 @@ export const DashboardScreen = ({ navigation }: any) => {
     return "Low Risk Portfolio";
   };
 
-  // Create chart data with default values if no portfolio is selected
-  const chartData = {
+  // Add this new function to fetch historical data
+  const loadChartData = async (portfolio: Portfolio | null, timeRange: string) => {
+    if (!portfolio || !portfolio.holdings || portfolio.holdings.length === 0) {
+      setChartData(undefined);
+      return;
+    }
+
+    try {
+      // For now, just use the first holding's data for the chart
+      const mainHolding = portfolio.holdings[0];
+      const symbol = mainHolding.symbol || mainHolding.asset_symbol;
+      
+      if (!symbol) {
+        console.error("No symbol found for holding");
+        return;
+      }
+
+      const historicalData = await getAssetHistoricalData(symbol, timeRange);
+      if (historicalData) {
+        setChartData(historicalData);
+      }
+    } catch (error) {
+      console.error("Error loading chart data:", error);
+    }
+  };
+
+  // Add effect to load chart data when portfolio or time range changes
+  useEffect(() => {
+    loadChartData(selectedPortfolio, selectedRange);
+  }, [selectedPortfolio, selectedRange]);
+
+  // Update the chart data object
+  const chartDataProps = {
     value: selectedPortfolio ? selectedPortfolio.value : 0,
     change: selectedPortfolio ? selectedPortfolio.change : 0,
     timeRanges,
     selectedRange,
     onRangeSelect: setSelectedRange,
+    chartData: chartData, // Add the historical data
   };
 
   // Update the effect to sync the local state with the context
@@ -381,7 +416,7 @@ export const DashboardScreen = ({ navigation }: any) => {
             <Text style={styles.sectionTitle}>{selectedPortfolio?.name}</Text>
             <Text style={styles.tapHint}>Tap to view</Text>
           </View>
-          <PortfolioChart data={chartData} onPress={handleChartPress} />
+          <TimeSeriesChart data={chartDataProps} onPress={handleChartPress} />
         </TouchableOpacity>
 
         <View style={styles.section}>

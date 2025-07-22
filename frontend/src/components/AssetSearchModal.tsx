@@ -3,13 +3,13 @@ import {
   View,
   TouchableOpacity,
   StyleSheet,
-  FlatList,
   Modal,
   ScrollView,
   ActivityIndicator,
 } from "react-native";
 import { Text, Input, Icon } from "@rneui/themed";
 import { COLORS } from "../constants/colors";
+import { EXTENDED_POPULAR_SYMBOLS } from "../constants/assets";
 import { Asset } from "../types";
 import { searchAssets, getMultipleAssetDetails } from "../services/financialApi";
 
@@ -28,7 +28,6 @@ export const AssetSearchModal: React.FC<AssetSearchModalProps> = ({
   const [selectedCategory, setSelectedCategory] = useState("All");
   const [isLoading, setIsLoading] = useState(false);
   const [searchResults, setSearchResults] = useState<Asset[]>([]);
-  const [recentSearches, setRecentSearches] = useState<Asset[]>([]);
   const [popularAssets, setPopularAssets] = useState<Asset[]>([]);
 
   const categories = ["All", "Stocks", "ETFs", "Crypto", "Forex"];
@@ -37,15 +36,12 @@ export const AssetSearchModal: React.FC<AssetSearchModalProps> = ({
   useEffect(() => {
     if (visible) {
       loadPopularAssets();
-      // Load recent searches from storage (in a real app)
-      // For now, we'll use mock data
-      setRecentSearches([]);
     }
   }, [visible]);
 
   // Load popular assets
   const loadPopularAssets = async () => {
-    const defaultSymbols = ["AAPL", "MSFT", "GOOGL", "AMZN", "TSLA", "META", "NVDA", "BTC-USD", "ETH-USD"];
+    const defaultSymbols = EXTENDED_POPULAR_SYMBOLS;
     
     try {
       setIsLoading(true);
@@ -87,38 +83,10 @@ export const AssetSearchModal: React.FC<AssetSearchModalProps> = ({
     }
   };
 
-  // Handle asset selection
+  // passed to parent 
   const handleSelectAsset = async (asset: Asset) => {
-    try {
-      setIsLoading(true);
-      
-      // Always fetch the latest detailed data for the selected asset
-      const [detailedAsset] = await getMultipleAssetDetails([asset.symbol]);
-      if (detailedAsset) {
-        asset = detailedAsset;
-      }
-      
-      // Add to recent searches (avoiding duplicates)
-      setRecentSearches(prev => {
-        const exists = prev.some(item => item.symbol === asset.symbol);
-        if (exists) {
-          return prev;
-        }
-        // Keep only the 5 most recent
-        return [asset, ...prev].slice(0, 5);
-      });
-      
-      // Pass the asset to the parent component
-      onSelectAsset(asset);
-      onClose();
-    } catch (error) {
-      console.error("Error selecting asset:", error);
-      // If we can't get detailed data, use what we have
-      onSelectAsset(asset);
-      onClose();
-    } finally {
-      setIsLoading(false);
-    }
+    onSelectAsset(asset);
+    onClose();
   };
 
   // Filter assets by category
@@ -261,32 +229,19 @@ export const AssetSearchModal: React.FC<AssetSearchModalProps> = ({
               )}
             </View>
           ) : (
-            // Show recent and popular when not searching
-            <>
-              {recentSearches.length > 0 && (
-                <View style={styles.section}>
-                  <Text style={styles.sectionTitle}>Recent Searches</Text>
-                  {filterByCategory(recentSearches).map((asset) => (
-                    <View key={asset.symbol}>
-                      {renderAssetItem({ item: asset })}
-                    </View>
-                  ))}
-                </View>
+            // Show popular assets when not searching
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Popular Assets</Text>
+              {isLoading && popularAssets.length === 0 ? (
+                <ActivityIndicator color={COLORS.textPink} style={styles.loader} />
+              ) : (
+                filterByCategory(popularAssets).map((asset) => (
+                  <View key={asset.symbol}>
+                    {renderAssetItem({ item: asset })}
+                  </View>
+                ))
               )}
-
-              <View style={styles.section}>
-                <Text style={styles.sectionTitle}>Popular Assets</Text>
-                {isLoading && popularAssets.length === 0 ? (
-                  <ActivityIndicator color={COLORS.textPink} style={styles.loader} />
-                ) : (
-                  filterByCategory(popularAssets).map((asset) => (
-                    <View key={asset.symbol}>
-                      {renderAssetItem({ item: asset })}
-                    </View>
-                  ))
-                )}
-              </View>
-            </>
+            </View>
           )}
         </ScrollView>
       </View>
