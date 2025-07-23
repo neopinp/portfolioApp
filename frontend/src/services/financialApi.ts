@@ -10,9 +10,6 @@ import { CacheItem } from "../types";
 
 const cache: Record<string, CacheItem> = {};
 
-/**
- * Get data from cache if it exists and is not expired
- */
 const getFromCache = (key: string): any | null => {
   const item = cache[key];
   if (!item) return null;
@@ -27,9 +24,6 @@ const getFromCache = (key: string): any | null => {
   return item.data;
 };
 
-/**
- * Save data to cache
- */
 const saveToCache = (key: string, data: any): void => {
   cache[key] = {
     data,
@@ -59,7 +53,7 @@ export const searchAssets = async (query: string): Promise<Asset[]> => {
       return [];
     }
 
-    // Create basic asset objects
+    // Create basic asset objects without risk calculation
     const assets: Asset[] = data.result
       .filter((item: any) => {
         // Only include US stocks and ETFs
@@ -72,7 +66,6 @@ export const searchAssets = async (query: string): Promise<Asset[]> => {
         type: item.type,
         price: 0,
         change: 0,
-        riskScore: calculateRiskScore(item.type),
       }));
 
     const limitedAssets = assets.slice(0, 5);
@@ -150,7 +143,6 @@ export const getAssetDetails = async (
       fullName: profileData.name || symbol,
       price,
       change: parseFloat(change.toFixed(2)),
-      riskScore: calculateRiskScore(profileData.finnhubIndustry),
       sector: profileData.finnhubIndustry || "N/A",
       type: "Stock",
 
@@ -369,58 +361,4 @@ const formatShares = (shares: number): string => {
   if (shares >= 1e6) return `${(shares / 1e6).toFixed(2)}M`;
   if (shares >= 1e3) return `${(shares / 1e3).toFixed(2)}K`;
   return shares.toFixed(2);
-};
-
-/*
-Calculate a risk score based on asset type and sector
-*/
-const calculateRiskScore = (typeOrSector: string = ""): number => {
-  const normalized = typeOrSector.toLowerCase();
-
-  // Higher risk sectors/types
-  if (
-    normalized.includes("crypto") ||
-    normalized.includes("technology") ||
-    normalized.includes("biotech")
-  ) {
-    return 8;
-  }
-
-  // Medium-high risk
-  if (
-    normalized.includes("etf") &&
-    (normalized.includes("growth") || normalized.includes("small cap"))
-  ) {
-    return 7;
-  }
-
-  // Medium risk
-  if (
-    normalized.includes("consumer") ||
-    normalized.includes("industrial") ||
-    normalized.includes("equity")
-  ) {
-    return 6;
-  }
-
-  // Medium-low risk
-  if (
-    normalized.includes("etf") ||
-    normalized.includes("dividend") ||
-    normalized.includes("healthcare")
-  ) {
-    return 5;
-  }
-
-  // Lower risk
-  if (
-    normalized.includes("bond") ||
-    normalized.includes("utility") ||
-    normalized.includes("treasury")
-  ) {
-    return 3;
-  }
-
-  // Default - medium risk
-  return 5;
 };

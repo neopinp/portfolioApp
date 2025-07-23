@@ -14,7 +14,7 @@ export const addHolding = async (
   response: Response
 ): Promise<void> => {};
 
-// implement get holdings for an asset (different dates of purchase)
+// implement get holdings for an asset (different dates of purchase) - NOT MVP
 
 export const simulateHolding = async (
   req: AuthenticatedRequest,

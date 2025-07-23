@@ -121,7 +121,7 @@ export const AssetsScreen = ({ route, navigation }: any) => {
       const finalAsset = detailed || asset;
 
       setSelectedAsset(finalAsset);
-      await loadChartData(finalAsset); // Use finalAsset instead of original asset
+      await loadChartData(finalAsset);
     } catch (error) {
       console.error(`Error in handleAssetSelection:`, error);
       // Fallback to original asset if detailed fetch fails

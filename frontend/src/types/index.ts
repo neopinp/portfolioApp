@@ -45,7 +45,7 @@ export interface Asset {
   price: number;
   change: number;
   fullName?: string;
-  riskScore: number;
+  riskRating?: number;  
   type?: string;
   sector?: string;
   imageUrl?: string;

@@ -21,6 +21,7 @@ import { storage, STORAGE_KEYS } from "../utils/storage";
 import { Portfolio, OnboardingData, Asset } from "../types";
 import { usePortfolio } from "../contexts/PortfolioContext";
 import { getAssetHistoricalData } from "../services/financialApi";
+import { getAssetDetails } from "../services/financialApi";
 
 // Use a union type for items that could be either a portfolio or a "new portfolio" button
 type PortfolioOrNew = Portfolio | { id: number };
@@ -283,32 +284,118 @@ export const DashboardScreen = ({ navigation }: any) => {
     );
   };
 
-  // Calculate average risk score from holdings
-  const calculateAverageRiskScore = (portfolio?: Portfolio | null): number => {
+  // Calculate risk rating for a single asset based on its characteristics
+  const calculateAssetRiskRating = async (symbol: string): Promise<number> => {
+    try {
+      const assetDetails = await getAssetDetails(symbol);
+      if (!assetDetails) return 5; // Default risk if we can't get details
+
+      let riskScore = 5; // Base risk score
+
+      // Sector-based risk
+      if (assetDetails.sector) {
+        const sector = assetDetails.sector.toLowerCase();
+        // Higher risk sectors
+        if (sector.includes('technology') || sector.includes('crypto') || sector.includes('biotech')) {
+          riskScore += 3;
+        }
+        // Medium-high risk sectors
+        else if (sector.includes('consumer cyclical') || sector.includes('communication')) {
+          riskScore += 2;
+        }
+        // Medium risk sectors
+        else if (sector.includes('industrial') || sector.includes('energy')) {
+          riskScore += 1;
+        }
+        // Low-medium risk sectors
+        else if (sector.includes('healthcare') || sector.includes('materials')) {
+          riskScore += 0;
+        }
+        // Lower risk sectors
+        else if (sector.includes('utilities') || sector.includes('consumer defensive')) {
+          riskScore -= 1;
+        }
+      }
+
+      // Beta-based risk (market sensitivity)
+      if (assetDetails.beta && assetDetails.beta !== 'N/A') {
+        const beta = parseFloat(assetDetails.beta);
+        if (!isNaN(beta)) {
+          if (beta > 1.5) riskScore += 2;
+          else if (beta > 1.2) riskScore += 1;
+          else if (beta < 0.8) riskScore -= 1;
+        }
+      }
+
+      // Market cap based risk (if available)
+      if (assetDetails.marketCap && assetDetails.marketCap !== 'N/A') {
+        const mcap = assetDetails.marketCap.toLowerCase();
+        if (mcap.includes('t')) riskScore -= 1; // Trillion dollar companies are more stable
+        else if (mcap.includes('m')) riskScore += 1; // Small caps are riskier
+      }
+
+      // Price volatility risk
+      if (assetDetails.change) {
+        const volatility = Math.abs(assetDetails.change);
+        if (volatility > 10) riskScore += 2;
+        else if (volatility > 5) riskScore += 1;
+      }
+
+      // Ensure risk score stays within 1-10 range
+      return Math.max(1, Math.min(10, Math.round(riskScore)));
+    } catch (error) {
+      console.error('Error calculating risk rating:', error);
+      return 5; // Default risk on error
+    }
+  };
+
+  // Calculate average risk rating from holdings
+  const calculateAverageRiskRating = async (portfolio?: Portfolio | null): Promise<number> => {
     if (!portfolio || !portfolio.holdings || portfolio.holdings.length === 0) {
       return 0;
     }
 
-    // For now, use the portfolio's risk score since holdings don't have individual risk scores yet
-    // In a real implementation, you would calculate the average from all holdings' risk scores
-    return portfolio.riskScore;
+    try {
+      let totalValue = 0;
+      let weightedRiskSum = 0;
+
+      // Calculate risk ratings for all holdings in parallel
+      const holdingPromises = portfolio.holdings.map(async (holding) => {
+        const holdingValue = Number(holding.amount) * Number(holding.boughtAtPrice);
+        const symbol = holding.symbol || holding.assetSymbol;
+        const riskRating = await calculateAssetRiskRating(symbol);
+        return { value: holdingValue, risk: riskRating };
+      });
+
+      const holdingResults = await Promise.all(holdingPromises);
+
+      holdingResults.forEach(({ value, risk }) => {
+        totalValue += value;
+        weightedRiskSum += value * risk;
+      });
+
+      return totalValue > 0 ? Math.round((weightedRiskSum / totalValue) * 10) / 10 : 0;
+    } catch (error) {
+      console.error('Error calculating average risk:', error);
+      return 0;
+    }
   };
 
   // Helper function for risk color
   const getRiskColor = (score: number) => {
     if (score === 0) return "#808080"; // Gray for no holdings
-    if (score > 7) return "#FF5252";
-    if (score > 4) return "#FFC107";
-    return "#4CAF50";
+    if (score > 7) return "#FF5252";    // High risk assets
+    if (score > 4) return "#FFC107";    // Medium risk assets
+    return "#4CAF50";                   // Low risk assets
   };
 
   // Helper function for risk description
   const getRiskDescription = (score: number): string => {
     if (score === 0) return "No Holdings Yet";
-    if (score >= 8) return "High Risk Portfolio";
-    if (score >= 5) return "Moderate Risk Portfolio";
-    if (score >= 3) return "Low-Moderate Risk Portfolio";
-    return "Low Risk Portfolio";
+    if (score >= 8) return "High Risk";
+    if (score >= 5) return "Moderate Risk";
+    if (score >= 3) return "Low-Moderate Risk";
+    return "Low Risk Assets";
   };
 
   // Add this new function to fetch historical data
@@ -369,6 +456,29 @@ export const DashboardScreen = ({ navigation }: any) => {
       setContextPortfolio(portfolios[0]);
     }
   }, [portfolios, selectedPortfolio]);
+
+  // In the render section, we need to handle the async nature of risk calculations
+  const [riskRatings, setRiskRatings] = useState<Record<string, number>>({});
+  const [averageRisk, setAverageRisk] = useState<number>(0);
+
+  // Effect to load risk ratings when portfolio changes
+  useEffect(() => {
+    const loadRiskRatings = async () => {
+      if (!selectedPortfolio || !selectedPortfolio.holdings) return;
+
+      const ratings: Record<string, number> = {};
+      for (const holding of selectedPortfolio.holdings) {
+        const symbol = holding.symbol || holding.assetSymbol;
+        ratings[symbol] = await calculateAssetRiskRating(symbol);
+      }
+      setRiskRatings(ratings);
+
+      const avgRisk = await calculateAverageRiskRating(selectedPortfolio);
+      setAverageRisk(avgRisk);
+    };
+
+    loadRiskRatings();
+  }, [selectedPortfolio]);
 
   if (isLoading) {
     return (
@@ -468,20 +578,14 @@ export const DashboardScreen = ({ navigation }: any) => {
                 <Text
                   style={[
                     styles.riskScore,
-                    {
-                      color: getRiskColor(
-                        calculateAverageRiskScore(selectedPortfolio)
-                      ),
-                    },
+                    { color: getRiskColor(averageRisk) }
                   ]}
                 >
-                  {calculateAverageRiskScore(selectedPortfolio)}
+                  {averageRisk}
                 </Text>
                 <Text style={styles.riskLabel}>out of 10</Text>
                 <Text style={styles.riskDescription}>
-                  {getRiskDescription(
-                    calculateAverageRiskScore(selectedPortfolio)
-                  )}
+                  {getRiskDescription(averageRisk)}
                 </Text>
               </Animated.View>
 
@@ -495,41 +599,37 @@ export const DashboardScreen = ({ navigation }: any) => {
               >
                 {selectedPortfolio && selectedPortfolio.holdings.length > 0 ? (
                   <View style={styles.assetsList}>
-                    {selectedPortfolio.holdings.map((holding) => (
-                      <View key={holding.id} style={styles.riskAssetItem}>
-                        <View style={styles.riskAssetInfo}>
-                          <Text style={styles.riskAssetSymbol}>
-                            {holding.symbol || holding.assetSymbol}
-                          </Text>
-                          <Text style={styles.riskAssetName}>
-                            {holding.fullName || ""}
-                          </Text>
-                        </View>
-                        <View
-                          style={[
-                            styles.riskBadge,
-                            {
-                              backgroundColor: `${getRiskColor(
-                                selectedPortfolio.riskScore
-                              )}20`,
-                            },
-                          ]}
-                        >
-                          <Text
+                    {selectedPortfolio.holdings.map((holding) => {
+                      const symbol = holding.symbol || holding.assetSymbol;
+                      const riskRating = riskRatings[symbol] || 0;
+                      return (
+                        <View key={holding.id} style={styles.riskAssetItem}>
+                          <View style={styles.riskAssetInfo}>
+                            <Text style={styles.riskAssetSymbol}>
+                              {symbol}
+                            </Text>
+                            <Text style={styles.riskAssetName}>{holding.fullName || ''}</Text>
+                          </View>
+                          <View
                             style={[
-                              styles.riskScoreSmall,
+                              styles.riskBadge,
                               {
-                                color: getRiskColor(
-                                  selectedPortfolio.riskScore
-                                ),
+                                backgroundColor: `${getRiskColor(riskRating)}20`,
                               },
                             ]}
                           >
-                            {selectedPortfolio.riskScore}
-                          </Text>
+                            <Text
+                              style={[
+                                styles.riskScoreSmall,
+                                { color: getRiskColor(riskRating) },
+                              ]}
+                            >
+                              {riskRating || 'N/A'}
+                            </Text>
+                          </View>
                         </View>
-                      </View>
-                    ))}
+                      );
+                    })}
                   </View>
                 ) : (
                   <View style={styles.emptyHoldingsContainer}>
