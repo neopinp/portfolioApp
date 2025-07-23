@@ -1,50 +1,64 @@
-import { PrismaClient } from "@prisma/client";
+import { prisma } from "../config/db";
 import { AddHoldingDto } from "../types/portfolio";
-import { PortfolioService } from "./portfolioservices";
+import { PortfolioService } from "./portfolioservice";
+import { FinancialService } from "./financialservice";
+import { NotFoundError, InsufficientFundsError } from "../utils/errors";
 
 export class HoldingService {
-  private prisma: PrismaClient;
-  private portfolioService: PortfolioService;
+  constructor(
+    private readonly portfolioService: PortfolioService,
+    private readonly financialService: FinancialService
+  ) {}
 
-  constructor() {
-    this.prisma = new PrismaClient();
-    this.portfolioService = new PortfolioService();
-  }
-
-  async addHolding(userId: number, portfolioId: number, data: AddHoldingDto) {
-    const portfolio = await this.portfolioService.getPortfolio(userId, portfolioId);
+  // NEED A GET HOLDINGS SERVICE TO DISPLAY ALL TRANSACTIONS FOR A SPECIFIC ASSET SYMBOL WHEN SELECTED
+  async simulateHolding(
+    userId: number,
+    portfolioId: number,
+    data: AddHoldingDto
+  ) {
+    const portfolio = await this.portfolioService.getPortfolio(
+      userId,
+      portfolioId
+    );
 
     if (!portfolio) {
-      throw new Error("Portfolio not found or does not belong to user");
+      throw new NotFoundError("Portfolio not found or does not belong to user");
     }
 
-    return this.prisma.holdings.create({
+    return prisma.holdings.create({
       data: {
-        portfolio_id: portfolioId,
-        asset_symbol: data.symbol,
+        portfolioId: portfolioId,
+        assetSymbol: data.symbol,
         amount: data.amount,
-        bought_at_price: data.boughtAtPrice,
+        boughtAtPrice: data.boughtAtPrice,
+        createdAt: new Date(),
       },
     });
   }
 
+  // CURRENT DAY financial services
+  async addHolding(userId: number, portfolioId: number, holdingId: number) {} // * ADD IN *
+
   async removeHolding(userId: number, portfolioId: number, holdingId: number) {
-    const portfolio = await this.portfolioService.getPortfolio(userId, portfolioId);
+    const portfolio = await this.portfolioService.getPortfolio(
+      userId,
+      portfolioId
+    );
     if (!portfolio) {
-      throw new Error("Portfolio not found or does not belong to user");
+      throw new NotFoundError("Portfolio not found or does not belong to user");
     }
 
-    const holding = await this.prisma.holdings.findFirst({
+    const holding = await prisma.holdings.findFirst({
       where: {
         id: holdingId,
-        portfolio_id: portfolioId,
+        portfolioId: portfolioId,
       },
     });
     if (!holding) {
-      throw new Error("Holding not found");
+      throw new NotFoundError("Holding not found");
     }
 
-    await this.prisma.holdings.delete({
+    await prisma.holdings.delete({
       where: {
         id: holdingId,
       },
@@ -58,29 +72,32 @@ export class HoldingService {
     holdingId: number,
     data: Partial<AddHoldingDto>
   ) {
-    const portfolio = await this.portfolioService.getPortfolio(userId, portfolioId);
+    const portfolio = await this.portfolioService.getPortfolio(
+      userId,
+      portfolioId
+    );
 
     if (!portfolio) {
-      throw new Error("Portfolio not found or does not belong to user");
+      throw new NotFoundError("Portfolio not found or does not belong to user");
     }
-    const holding = await this.prisma.holdings.findFirst({
+    const holding = await prisma.holdings.findFirst({
       where: {
         id: holdingId,
-        portfolio_id: portfolioId,
+        portfolioId: portfolioId,
       },
     });
 
     if (!holding) {
-      throw new Error("Holding not found or access denied");
+      throw new NotFoundError("Holding not found or access denied");
     }
 
-    return this.prisma.holdings.update({
+    return prisma.holdings.update({
       where: {
         id: holdingId,
       },
       data: {
         amount: data.amount,
-        bought_at_price: data.boughtAtPrice,
+        boughtAtPrice: data.boughtAtPrice,
       },
     });
   }

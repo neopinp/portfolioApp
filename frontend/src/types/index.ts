@@ -1,24 +1,29 @@
 export interface Portfolio {
   id: number;
   name: string;
-  starting_balance: number;
-  risk_score: number;
+  startingBalance: number;
   holdings: Holding[];
   value: number;
   change: number;
   riskScore: number;
   userId?: number;
-  created_at?: Date;
+  createdAt?: Date;
   chartData?: any[];
+}
+
+export interface CreatePortfolioData {
+  name: string;
+  startingBalance: number;
+  riskScore: number;
 }
 
 export interface Holding {
   id: number;
-  portfolio_id: number;
-  asset_symbol: string;
+  portfolioId: number;
+  assetSymbol: string;
   amount: number;
-  bought_at_price?: number;
-  created_at?: Date;
+  boughtAtPrice?: number;
+  createdAt?: Date;
   symbol?: string;
   fullName?: string;
   value?: number;
@@ -83,4 +88,9 @@ export interface ChartData {
   data: TimeSeriesPoint[];
   startDate: string;
   endDate: string;
+}
+// Simple in-memory cache
+export interface CacheItem {
+  data: any;
+  timestamp: number;
 }

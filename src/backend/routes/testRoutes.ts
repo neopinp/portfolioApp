@@ -1,8 +1,7 @@
 import { Router, Request, Response } from 'express';
-import { PrismaClient } from '@prisma/client';
+import { prisma } from '../config/db';
 
 const router = Router();
-const prisma = new PrismaClient();
 
 // Test database connection
 router.get('/test-db', async (req: Request, res: Response) => {

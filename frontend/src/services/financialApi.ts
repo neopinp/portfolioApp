@@ -6,12 +6,7 @@ import {
   TWELVE_DATA_API_KEY,
   CACHE_DURATION,
 } from "../config/financialApi";
-
-// Simple in-memory cache
-interface CacheItem {
-  data: any;
-  timestamp: number;
-}
+import { CacheItem } from "../types";
 
 const cache: Record<string, CacheItem> = {};
 

@@ -63,8 +63,8 @@ export const CreatePortfolioScreen = ({
 
       await api.portfolios.create({
         name: name.trim(),
-        starting_balance: parsedInitialValue,
-        risk_score: riskScore,
+        startingBalance: parsedInitialValue,
+        riskScore: riskScore,
       });
       
       navigation.goBack();

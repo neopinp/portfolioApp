@@ -60,7 +60,7 @@ export const PortfolioScreen = ({ route, navigation }: any) => {
     try {
       // For now, just use the first holding's data for the chart
       const mainHolding = holdings[0];
-      const symbol = mainHolding.symbol || mainHolding.asset_symbol;
+      const symbol = mainHolding.symbol || mainHolding.assetSymbol;
       
       if (!symbol) {
         console.error("No symbol found for holding");

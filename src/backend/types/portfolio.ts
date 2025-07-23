@@ -2,8 +2,8 @@ import { Decimal } from '@prisma/client/runtime/library';
 
 export interface CreatePortfolioDto {
     name: string;
-    starting_balance: number;
-    risk_score: number;
+    startingBalance: number;
+    riskScore: number;
 }
 
 export interface AddHoldingDto {
@@ -17,8 +17,8 @@ export interface Portfolio {
     userId: number;
     name: string;
     created_at: Date;
-    starting_balance: Decimal;
-    risk_score: number;
+    startingBalance: Decimal;
+    riskScore: number;
     holdings: Holding[];
 }
 

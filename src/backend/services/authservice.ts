@@ -1,16 +1,14 @@
-import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcrypt";
 import jwt, { SignOptions } from "jsonwebtoken";
 import { authConfig } from "../config/auth";
-import { AuthenticatedUser, UserCredentials, LoginCredentials } from "../types/auth";
+import {
+  AuthenticatedUser,
+  UserCredentials,
+  LoginCredentials,
+} from "../types/auth";
+import { prisma } from "../config/db"
 
 export class AuthService {
-  private prisma: PrismaClient;
-
-  constructor() {
-    this.prisma = new PrismaClient();
-  }
-
   async validateEmail(email: string): Promise<boolean> {
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     return emailRegex.test(email);
@@ -30,14 +28,17 @@ export class AuthService {
     return {
       id: user.id.toString(),
       email: user.email,
-      username: user.username || ''
+      username: user.username || "",
     };
   }
 
   async createUser(credentials: UserCredentials): Promise<AuthenticatedUser> {
-    const hashed = await bcrypt.hash(credentials.password, authConfig.bcryptSaltRounds);
-    
-    const user = await this.prisma.users.create({
+    const hashed = await bcrypt.hash(
+      credentials.password,
+      authConfig.bcryptSaltRounds
+    );
+
+    const user = await prisma.users.create({
       data: {
         email: credentials.email,
         username: credentials.username,
@@ -54,31 +55,31 @@ export class AuthService {
   }
 
   async findUserByEmailOrUsername(emailOrUsername: string) {
-    return this.prisma.users.findFirst({
+    return prisma.users.findFirst({
       where: {
-        OR: [
-          { email: emailOrUsername },
-          { username: emailOrUsername }
-        ],
+        OR: [{ email: emailOrUsername }, { username: emailOrUsername }],
       },
       select: {
         id: true,
         email: true,
         username: true,
-        password: true
-      }
+        password: true,
+      },
     });
   }
 
   async checkEmailExists(email: string): Promise<boolean> {
-    const user = await this.prisma.users.findUnique({
+    const user = await prisma.users.findUnique({
       where: { email },
-      select: { id: true }
+      select: { id: true },
     });
     return !!user;
   }
 
-  async comparePasswords(inputPassword: string, hashedPassword: string): Promise<boolean> {
+  async comparePasswords(
+    inputPassword: string,
+    hashedPassword: string
+  ): Promise<boolean> {
     return bcrypt.compare(inputPassword, hashedPassword);
   }
 
@@ -86,9 +87,9 @@ export class AuthService {
     if (!authConfig.jwtSecret) {
       throw new Error("JWT_SECRET is not defined");
     }
-    
+
     const signOptions: SignOptions = {
-      expiresIn: authConfig.jwtExpiresIn
+      expiresIn: authConfig.jwtExpiresIn,
     };
 
     return jwt.sign(
@@ -98,24 +99,31 @@ export class AuthService {
     );
   }
 
-  async login(credentials: LoginCredentials): Promise<{ user: AuthenticatedUser; token: string } | null> {
-    const user = await this.findUserByEmailOrUsername(credentials.emailorUsername);
-    
+  async login(
+    credentials: LoginCredentials
+  ): Promise<{ user: AuthenticatedUser; token: string } | null> {
+    const user = await this.findUserByEmailOrUsername(
+      credentials.emailorUsername
+    );
+
     if (!user) {
       return null;
     }
 
-    const isValidPassword = await this.comparePasswords(credentials.password, user.password);
+    const isValidPassword = await this.comparePasswords(
+      credentials.password,
+      user.password
+    );
     if (!isValidPassword) {
       return null;
     }
 
     const authenticatedUser = this.mapToAuthenticatedUser(user);
     const token = this.generateToken(authenticatedUser);
-    
+
     return {
       user: authenticatedUser,
-      token
+      token,
     };
   }
 }

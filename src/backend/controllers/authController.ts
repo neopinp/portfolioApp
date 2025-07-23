@@ -1,18 +1,16 @@
 import { Request, Response } from "express";
-import { AuthService } from "../services/auth.service";
 import {
   UserCredentials,
   LoginCredentials,
   AuthenticatedRequest,
 } from "../types/auth";
-
-const authService = new AuthService();
+import { services } from "../config/services";
 
 const registerUser = async (req: Request, res: Response): Promise<void> => {
   const credentials: UserCredentials = req.body;
 
   try {
-    if (!(await authService.validateEmail(credentials.email))) {
+    if (!(await services.auth.validateEmail(credentials.email))) {
       res.status(400).json({ error: "Invalid email format" });
       return;
     }
@@ -22,7 +20,7 @@ const registerUser = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    const passwordError = await authService.validatePassword(
+    const passwordError = await services.auth.validatePassword(
       credentials.password
     );
     if (passwordError) {
@@ -30,7 +28,7 @@ const registerUser = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    const user = await authService.createUser(credentials);
+    const user = await services.auth.createUser(credentials);
 
     res.status(201).json({
       message: "User registered",
@@ -59,7 +57,7 @@ const loginUser = async (req: Request, res: Response): Promise<void> => {
   const credentials: LoginCredentials = req.body;
 
   try {
-    const result = await authService.login(credentials);
+    const result = await services.auth.login(credentials);
 
     if (!result) {
       res.status(400).json({ error: "Invalid credentials" });
@@ -89,7 +87,7 @@ const checkEmail = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    const exists = await authService.checkEmailExists(email);
+    const exists = await services.auth.checkEmailExists(email);
     res.status(200).json({ exists });
   } catch (err: unknown) {
     if (err instanceof Error) {

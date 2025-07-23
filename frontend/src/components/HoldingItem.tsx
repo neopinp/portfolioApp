@@ -16,7 +16,7 @@ type HoldingItemProps = {
 
 export const HoldingItem = ({ holding, symbol, fullName, value, change, imageUrl }: HoldingItemProps) => {
   // Use either the holding object or the individual props
-  const displaySymbol = symbol || holding?.symbol || holding?.asset_symbol || '';
+  const displaySymbol = symbol || holding?.symbol || holding?.assetSymbol || '';
   const displayName = fullName || holding?.fullName || '';
   const displayValue = value ?? holding?.value ?? 0;
   const displayChange = change ?? holding?.change ?? 0;

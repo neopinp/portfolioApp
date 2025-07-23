@@ -6,12 +6,17 @@ Remove a holding from a portfolio
 
 import { Response } from "express";
 import { AuthenticatedRequest } from "../types/auth";
-import { HoldingService } from "../services/holdingservice";
 import { AddHoldingDto } from "../types/portfolio";
-
-const holdingService = new HoldingService();
+import { services } from "../config/services";
 
 export const addHolding = async (
+  req: AuthenticatedRequest,
+  response: Response
+): Promise<void> => {};
+
+// implement get holdings for an asset (different dates of purchase)
+
+export const simulateHolding = async (
   req: AuthenticatedRequest,
   res: Response
 ): Promise<void> => {
@@ -19,7 +24,7 @@ export const addHolding = async (
     const userId = parseInt((req.user as any).id);
     const portfolioId = parseInt(req.params.portfolioId);
     const holdingData: AddHoldingDto = req.body;
-    const holding = await holdingService.addHolding(
+    const holding = await services.holding.simulateHolding(
       userId,
       portfolioId,
       holdingData
@@ -43,7 +48,7 @@ export const removeHolding = async (
     const portfolioId = parseInt(req.params.portfolioId);
     const holdingId = parseInt(req.params.holdingId);
 
-    const result = await holdingService.removeHolding(
+    const result = await services.holding.removeHolding(
       userId,
       portfolioId,
       holdingId
@@ -69,7 +74,7 @@ export const updateHolding = async (
   const updateData: Partial<AddHoldingDto> = req.body;
 
   try {
-    const holding = await holdingService.updateHolding(
+    const holding = await services.holding.updateHolding(
       userId,
       portfolioId,
       holdingId,

@@ -1,6 +1,7 @@
 import { Portfolio } from "types";
-import { API_URL, getApiUrl } from "../config/api";
-import { storage, STORAGE_KEYS } from "../utils/storage";
+import { getApiUrl } from "../config/api";
+import { storage } from "../utils/storage";
+import { CreatePortfolioData } from "types";
 
 // Generic API request function
 const apiRequest = async (endpoint: string, options: RequestInit = {}) => {
@@ -37,12 +38,6 @@ const apiRequest = async (endpoint: string, options: RequestInit = {}) => {
     throw error;
   }
 };
-
-interface CreatePortfolioData {
-  name: string;
-  starting_balance: number;
-  risk_score: number;
-}
 
 // API methods
 export const api = {
@@ -126,21 +121,22 @@ export const api = {
 export const fetchPortfolio = async (id: number): Promise<Portfolio> => {
   try {
     const response = await api.portfolios.getOne(id);
-    
+
     // Transform the API response to match our Portfolio type
     const portfolio: Portfolio = {
       id: response.portfolio.id,
       name: response.portfolio.name,
-      starting_balance: response.portfolio.starting_balance,
-      risk_score: response.portfolio.risk_score,
+      startingBalance: response.portfolio.startingBalance,
       holdings: response.portfolio.holdings || [],
       value: response.portfolio.value || 0,
       change: response.portfolio.change || 0,
-      riskScore: response.portfolio.risk_score || 5,
-      userId: response.portfolio.user_id,
-      created_at: response.portfolio.created_at ? new Date(response.portfolio.created_at) : undefined,
+      riskScore: response.portfolio.riskScore || 5,
+      userId: response.portfolio.userId,
+      createdAt: response.portfolio.createdAt
+        ? new Date(response.portfolio.createdAt)
+        : undefined,
     };
-    
+
     return portfolio;
   } catch (error) {
     console.error("Error fetching portfolio:", error);

@@ -27,7 +27,10 @@ type PortfolioOrNew = Portfolio | { id: number };
 
 export const DashboardScreen = ({ navigation }: any) => {
   const { logout, user } = useAuth();
-  const { selectedPortfolio: contextPortfolio, setSelectedPortfolio: setContextPortfolio } = usePortfolio();
+  const {
+    selectedPortfolio: contextPortfolio,
+    setSelectedPortfolio: setContextPortfolio,
+  } = usePortfolio();
   const [portfolios, setPortfolios] = useState<Portfolio[]>([]);
   const [selectedPortfolio, setSelectedPortfolio] = useState<Portfolio | null>(
     contextPortfolio
@@ -102,20 +105,21 @@ export const DashboardScreen = ({ navigation }: any) => {
 
       const newPortfolio = await api.portfolios.create({
         name: portfolioName,
-        starting_balance: initialInvestment,
-        risk_score: riskTolerance,
+        startingBalance: initialInvestment,
+        riskScore: riskTolerance,
       });
 
       // Transform portfolio so that it can be passed
       const transformedPortfolio: Portfolio = {
         id: newPortfolio.id,
         name: newPortfolio.name || "",
-        value: Number(newPortfolio.starting_balance) || 0,
-        riskScore: newPortfolio.risk_score || 5,
+        value: Number(newPortfolio.startingBalance) || 0,
+        riskScore: newPortfolio.riskScore || 5,
         change: 0,
         holdings: newPortfolio.holdings || [],
-        starting_balance: Number(newPortfolio.starting_balance) || 0,
-        risk_score: newPortfolio.risk_score || 5,
+        startingBalance: Number(newPortfolio.startingBalance) || 0,
+        userId: newPortfolio.userId,
+        createdAt: newPortfolio.createdAt ? new Date(newPortfolio.createdAt) : undefined,
       };
 
       setPortfolios([transformedPortfolio]);
@@ -147,12 +151,13 @@ export const DashboardScreen = ({ navigation }: any) => {
         const transformedPortfolios = response.map((portfolio: any) => ({
           id: portfolio.id,
           name: portfolio.name || "",
-          value: Number(portfolio.starting_balance) || 0,
-          riskScore: portfolio.risk_score || 5,
+          value: Number(portfolio.startingBalance) || 0,
+          riskScore: portfolio.riskScore || 5,
           change: 0,
           holdings: portfolio.holdings || [],
-          starting_balance: Number(portfolio.starting_balance) || 0,
-          risk_score: portfolio.risk_score || 5,
+          startingBalance: Number(portfolio.startingBalance) || 0,
+          userId: portfolio.userId,
+          createdAt: portfolio.createdAt ? new Date(portfolio.createdAt) : undefined,
         }));
 
         setPortfolios(transformedPortfolios);
@@ -203,9 +208,10 @@ export const DashboardScreen = ({ navigation }: any) => {
     // Height animation - dynamically calculate based on holdings count
     const baseHeight = 180;
     const holdingsCount = selectedPortfolio?.holdings?.length || 0;
-    const expandedHeight = holdingsCount === 0 
-      ? baseHeight // Empty state height
-      : Math.min(500, baseHeight + holdingsCount * 40); // Cap at 500px
+    const expandedHeight =
+      holdingsCount === 0
+        ? baseHeight // Empty state height
+        : Math.min(500, baseHeight + holdingsCount * 40); // Cap at 500px
 
     Animated.timing(heightAnimation, {
       toValue: showRiskDetails ? baseHeight : expandedHeight,
@@ -282,7 +288,7 @@ export const DashboardScreen = ({ navigation }: any) => {
     if (!portfolio || !portfolio.holdings || portfolio.holdings.length === 0) {
       return 0;
     }
-    
+
     // For now, use the portfolio's risk score since holdings don't have individual risk scores yet
     // In a real implementation, you would calculate the average from all holdings' risk scores
     return portfolio.riskScore;
@@ -306,7 +312,10 @@ export const DashboardScreen = ({ navigation }: any) => {
   };
 
   // Add this new function to fetch historical data
-  const loadChartData = async (portfolio: Portfolio | null, timeRange: string) => {
+  const loadChartData = async (
+    portfolio: Portfolio | null,
+    timeRange: string
+  ) => {
     if (!portfolio || !portfolio.holdings || portfolio.holdings.length === 0) {
       setChartData(undefined);
       return;
@@ -315,8 +324,8 @@ export const DashboardScreen = ({ navigation }: any) => {
     try {
       // For now, just use the first holding's data for the chart
       const mainHolding = portfolio.holdings[0];
-      const symbol = mainHolding.symbol || mainHolding.asset_symbol;
-      
+      const symbol = mainHolding.symbol || mainHolding.assetSymbol;
+
       if (!symbol) {
         console.error("No symbol found for holding");
         return;
@@ -393,8 +402,6 @@ export const DashboardScreen = ({ navigation }: any) => {
     <SafeAreaView style={styles.container}>
       <AppHeader title="Dashboard" username={user?.username || "User"} />
       <ScrollView style={styles.scrollView}>
-
-
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Your Portfolios</Text>
           <FlatList
@@ -458,15 +465,23 @@ export const DashboardScreen = ({ navigation }: any) => {
                   { display: showRiskDetails ? "none" : "flex" },
                 ]}
               >
-                <Text style={[
-                  styles.riskScore,
-                  { color: getRiskColor(calculateAverageRiskScore(selectedPortfolio)) }
-                ]}>
+                <Text
+                  style={[
+                    styles.riskScore,
+                    {
+                      color: getRiskColor(
+                        calculateAverageRiskScore(selectedPortfolio)
+                      ),
+                    },
+                  ]}
+                >
                   {calculateAverageRiskScore(selectedPortfolio)}
                 </Text>
                 <Text style={styles.riskLabel}>out of 10</Text>
                 <Text style={styles.riskDescription}>
-                  {getRiskDescription(calculateAverageRiskScore(selectedPortfolio))}
+                  {getRiskDescription(
+                    calculateAverageRiskScore(selectedPortfolio)
+                  )}
                 </Text>
               </Animated.View>
 
@@ -484,9 +499,11 @@ export const DashboardScreen = ({ navigation }: any) => {
                       <View key={holding.id} style={styles.riskAssetItem}>
                         <View style={styles.riskAssetInfo}>
                           <Text style={styles.riskAssetSymbol}>
-                            {holding.symbol || holding.asset_symbol}
+                            {holding.symbol || holding.assetSymbol}
                           </Text>
-                          <Text style={styles.riskAssetName}>{holding.fullName || ''}</Text>
+                          <Text style={styles.riskAssetName}>
+                            {holding.fullName || ""}
+                          </Text>
                         </View>
                         <View
                           style={[
@@ -501,7 +518,11 @@ export const DashboardScreen = ({ navigation }: any) => {
                           <Text
                             style={[
                               styles.riskScoreSmall,
-                              { color: getRiskColor(selectedPortfolio.riskScore) },
+                              {
+                                color: getRiskColor(
+                                  selectedPortfolio.riskScore
+                                ),
+                              },
                             ]}
                           >
                             {selectedPortfolio.riskScore}
