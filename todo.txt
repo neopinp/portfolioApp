@@ -1,0 +1,10 @@
+Display the percent change based on the timerange that is selected (where?) 
+- in assets screen just change the percentage that is already being displayed
+- mimic behavior for the other charts
+Implement batch calling for an asset's chart data for ALL time ranges & use cache instead of making an API request everytime a new time range is selected getassethistoricaldata
+Implement batch calling for all assets in holdings if TwelveData APi allows it; else loop through holdings
+
+
+Add a new field in portfolios for cashAvailableToTrade & totalValue - use it in the beginning of portfolio creation that don't reference it unless you want a transactions list 
+In the portfolioscreen, holdings each asset in the list should be clickable and expand to see all details of buy dates and buy prices and buy amount. 
+In the main display of the holdings items, somewhere in the unexpanded part should include total shares, average cost, total percent change, and total amount 
