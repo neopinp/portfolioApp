@@ -1,21 +1,18 @@
 import { prisma } from "../config/db";
 import { AddHoldingDto } from "../types/portfolio";
 import { PortfolioService } from "./portfolioservice";
-import { FinancialService } from "./financialservice";
-import { NotFoundError, InsufficientFundsError } from "../utils/errors";
+import { NotFoundError } from "../utils/errors";
 
 export class HoldingService {
   constructor(
     private readonly portfolioService: PortfolioService,
-    private readonly financialService: FinancialService
   ) {}
 
   // NEED A GET HOLDINGS SERVICE TO DISPLAY ALL TRANSACTIONS FOR A SPECIFIC ASSET SYMBOL WHEN SELECTED
-  async simulateHolding(
-    userId: number,
-    portfolioId: number,
-    data: AddHoldingDto
-  ) {
+
+
+  // for simulation buying and current buying
+  async addHolding(userId: number, portfolioId: number, data: AddHoldingDto) {
     const portfolio = await this.portfolioService.getPortfolio(
       userId,
       portfolioId
@@ -31,14 +28,11 @@ export class HoldingService {
         assetSymbol: data.symbol,
         amount: data.amount,
         boughtAtPrice: data.boughtAtPrice,
+        boughtAtDate: data.boughtAtDate,
         createdAt: new Date(),
       },
     });
   }
-
-  // CURRENT DAY financial services
-  async addHolding(userId: number, portfolioId: number, holdingId: number) {} // * ADD IN *
-
   async removeHolding(userId: number, portfolioId: number, holdingId: number) {
     const portfolio = await this.portfolioService.getPortfolio(
       userId,

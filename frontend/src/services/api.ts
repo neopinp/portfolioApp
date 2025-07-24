@@ -1,7 +1,7 @@
 import { Portfolio } from "types";
 import { getApiUrl } from "../config/api";
 import { storage } from "../utils/storage";
-import { CreatePortfolioData } from "types";
+import { CreatePortfolioData, AddHoldingDto } from "types";
 
 // Generic API request function
 const apiRequest = async (endpoint: string, options: RequestInit = {}) => {
@@ -105,13 +105,14 @@ export const api = {
   holdings: {
     getAll: (portfolioId: number) =>
       apiRequest(`holdings?portfolioId=${portfolioId}`),
-    add: (portfolioId: number, data: any) =>
+    add: (portfolioId: number, data: AddHoldingDto) =>
       apiRequest(`holdings/${portfolioId}`, {
         method: "POST",
         body: JSON.stringify({
           symbol: data.symbol,
           amount: data.amount || 100,
           boughtAtPrice: data.boughtAtPrice || 0,
+          boughtAtDate: data.boughtAtDate,
         }),
       }),
   },

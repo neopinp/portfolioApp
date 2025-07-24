@@ -9,14 +9,9 @@ import { AuthenticatedRequest } from "../types/auth";
 import { AddHoldingDto } from "../types/portfolio";
 import { services } from "../config/services";
 
-export const addHolding = async (
-  req: AuthenticatedRequest,
-  response: Response
-): Promise<void> => {};
-
 // implement get holdings for an asset (different dates of purchase) - NOT MVP
 
-export const simulateHolding = async (
+export const addHolding = async (
   req: AuthenticatedRequest,
   res: Response
 ): Promise<void> => {
@@ -24,7 +19,7 @@ export const simulateHolding = async (
     const userId = parseInt((req.user as any).id);
     const portfolioId = parseInt(req.params.portfolioId);
     const holdingData: AddHoldingDto = req.body;
-    const holding = await services.holding.simulateHolding(
+    const holding = await services.holding.addHolding(
       userId,
       portfolioId,
       holdingData

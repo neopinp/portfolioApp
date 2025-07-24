@@ -275,16 +275,16 @@ const getTimeSeriesParams = (
     case "1W":
       startDate.setDate(now.getDate() - 7);
       return {
-        interval: "1h",
-        outputsize: 168,
+        interval: "30min",
+        outputsize: 300,
         startDate: startDate.toISOString().split("T")[0],
       };
 
     case "1M":
       startDate.setMonth(now.getMonth() - 1);
       return {
-        interval: "1day",
-        outputsize: 30,
+        interval: "4h",
+        outputsize: 180,
         startDate: startDate.toISOString().split("T")[0],
       };
 
@@ -292,7 +292,7 @@ const getTimeSeriesParams = (
       startDate.setMonth(now.getMonth() - 3);
       return {
         interval: "1day",
-        outputsize: 66,
+        outputsize: 100,
         startDate: startDate.toISOString().split("T")[0],
       };
 
@@ -300,7 +300,7 @@ const getTimeSeriesParams = (
       startDate.setMonth(now.getMonth() - 6);
       return {
         interval: "1day",
-        outputsize: 128,
+        outputsize: 130,
         startDate: startDate.toISOString().split("T")[0],
       };
 

@@ -29,8 +29,6 @@ export interface Holding {
   value?: number;
   change?: number;
   imageUrl?: string;
-
-  // Additional properties for real-time data
   quantity: number;
   purchasePrice: number;
   currentValue: number;
@@ -39,18 +37,23 @@ export interface Holding {
   asset: Asset;
 }
 
+export interface AddHoldingDto {
+  symbol: string;
+  amount: number;
+  boughtAtPrice: number;
+  boughtAtDate?: string;
+}
+
 export interface Asset {
   symbol: string;
   name: string;
   price: number;
   change: number;
   fullName?: string;
-  riskRating?: number;  
+  riskRating?: number;
   type?: string;
   sector?: string;
   imageUrl?: string;
-
-  // Additional detailed information
   marketCap?: string;
   sharesOutstanding?: string;
   high52w?: string;

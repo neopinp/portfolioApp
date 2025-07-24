@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import {
   View,
   ScrollView,
@@ -19,6 +19,8 @@ import { TimeSeriesChart } from "../components/TimeSeriesChart";
 import { AppHeader } from "../components/AppHeader";
 import { BottomNavSpacer } from "../components/BottomNavSpacer";
 import { AssetSearchModal } from "../components/AssetSearchModal";
+import { SimulateHoldingModal } from "../components/SimulateHoldingModal";
+import { TradeButtons } from "../components/TradeButtons";
 import { useAuth } from "../contexts/AuthContext";
 import { api } from "../services/api";
 import { Asset } from "../types";
@@ -30,22 +32,15 @@ import {
 } from "../services/financialApi";
 import { ChartData } from "../types";
 
-
-export const AssetsScreen = ({ route, navigation }: any) => {
-  const { portfolioId: routePortfolioId } = route.params || {};
-  const { selectedPortfolio: contextPortfolio } = usePortfolio();
-
-  // Use the portfolioId from route params if available, otherwise it's not in "add to portfolio" mode
-  const portfolioId = routePortfolioId;
-
+export const AssetsScreen = ({ navigation }: any) => {
+  const { selectedPortfolio } = usePortfolio();
   const { user } = useAuth();
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
-  const [showSearch, setShowSearch] = useState(false);
   const [searchModalVisible, setSearchModalVisible] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [timeRanges] = useState(["1D", "1W", "1M", "3M", "6M"]);
-  const [selectedRange, setSelectedRange] = useState("1M");
+  const [showTradeModal, setShowTradeModal] = useState(false);
   const [isAddingAsset, setIsAddingAsset] = useState(false);
+  const [timeRanges] = useState(["1D", "1W", "1M", "3M", "6M", "1Y", "5Y"]);
+  const [selectedRange, setSelectedRange] = useState("1M");
   const [isLoading, setIsLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [topMovers, setTopMovers] = useState<Asset[]>([]);
@@ -179,42 +174,44 @@ export const AssetsScreen = ({ route, navigation }: any) => {
     setSearchModalVisible(true);
   };
 
-  const handleBuyAsset = () => {
-    if (!selectedAsset) {
+  const handleAddAsset = () => {
+    if (!selectedAsset || !selectedPortfolio) {
       Alert.alert("Error", "Please select an asset first.");
       return;
     }
 
-    // Navigate to a buy screen (to be implemented)
-    Alert.alert(
-      "Buy Asset",
-      `This will navigate to the Buy screen for ${selectedAsset.symbol}.\nThis feature will be implemented soon.`,
-      [
-        {
-          text: "OK",
-          style: "cancel",
-        },
-      ]
-    );
+    setShowTradeModal(true);
   };
 
-  const handleSellAsset = () => {
-    if (!selectedAsset) {
-      Alert.alert("Error", "Please select an asset first.");
-      return;
-    }
+  const handleTradeSubmit = async (amount: number, price: number, date: Date) => {
+    if (!selectedAsset || !selectedPortfolio) return;
 
-    // Navigate to a sell screen (to be implemented)
-    Alert.alert(
-      "Sell Asset",
-      `This will navigate to the Sell screen for ${selectedAsset.symbol}.\nThis feature will be implemented soon.`,
-      [
-        {
-          text: "OK",
-          style: "cancel",
-        },
-      ]
-    );
+    try {
+      setIsAddingAsset(true);
+
+      await api.holdings.add(selectedPortfolio.id, {
+        symbol: selectedAsset.symbol,
+        amount,
+        boughtAtPrice: price,
+        boughtAtDate: date.toISOString(),
+      });
+
+      Alert.alert(
+        "Success",
+        `Added ${amount} shares of ${selectedAsset.symbol} at $${price}`,
+        [{ text: "OK" }]
+      );
+      setShowTradeModal(false);
+    } catch (error) {
+      console.error("Error adding holding:", error);
+      Alert.alert("Error", "Failed to add holding. Please try again.");
+    } finally {
+      setIsAddingAsset(false);
+    }
+  };
+
+  const handleSell = () => {
+    Alert.alert("Coming Soon", "Sell functionality will be added soon!");
   };
 
   // Flip card animation function
@@ -240,72 +237,6 @@ export const AssetsScreen = ({ route, navigation }: any) => {
     }).start();
   };
 
-  const handleAddToPortfolio = async () => {
-    if (!selectedAsset) {
-      Alert.alert("Error", "Please select an asset first.");
-      return;
-    }
-
-    if (!portfolioId) {
-      // If accessed directly without a portfolio ID, navigate to dashboard
-      Alert.alert(
-        "No Portfolio Selected",
-        "Would you like to go to your portfolios to select one?",
-        [
-          {
-            text: "Yes",
-            onPress: () => navigation.navigate("Dashboard"),
-          },
-          {
-            text: "Cancel",
-            style: "cancel",
-          },
-        ]
-      );
-      return;
-    }
-
-    try {
-      setIsAddingAsset(true);
-
-      // Simplified data that matches the backend AddHoldingDto
-      const holdingData = {
-        symbol: selectedAsset.symbol,
-        amount: 100, // Default amount
-        boughtAtPrice: selectedAsset.price, // Current price
-      };
-
-      // Add the holding to the portfolio
-      await api.holdings.add(portfolioId, holdingData);
-
-      // Show success message
-      Alert.alert(
-        "Success",
-        `Added ${selectedAsset.symbol} to your portfolio!`,
-        [
-          {
-            text: "View Portfolio",
-            onPress: () => navigation.navigate("Portfolio", { portfolioId }),
-          },
-          {
-            text: "Add More",
-            style: "cancel",
-          },
-        ]
-      );
-
-      // Reset selection
-      setSelectedAsset(null);
-    } catch (error) {
-      console.error("Error adding asset to portfolio:", error);
-      Alert.alert(
-        "Error",
-        "Failed to add asset to portfolio. Please try again."
-      );
-    } finally {
-      setIsAddingAsset(false);
-    }
-  };
   // Handle pull-to-refresh
   const onRefresh = async () => {
     setRefreshing(true);
@@ -317,7 +248,6 @@ export const AssetsScreen = ({ route, navigation }: any) => {
   };
 
   // Determine if we're in "add to portfolio" mode
-  const isAddToPortfolioMode = !!portfolioId;
   // Animation interpolations
   const frontInterpolate = flipAnimation.interpolate({
     inputRange: [0, 180],
@@ -339,10 +269,7 @@ export const AssetsScreen = ({ route, navigation }: any) => {
 
   return (
     <SafeAreaView style={styles.container}>
-      <AppHeader
-        title={isAddToPortfolioMode ? "Add Asset to Portfolio" : "Assets"}
-        username={user?.username || "User"}
-      />
+      <AppHeader title="Assets" username={user?.username || "User"} />
       <ScrollView
         style={styles.scrollView}
         refreshControl={
@@ -581,34 +508,34 @@ export const AssetsScreen = ({ route, navigation }: any) => {
             </Animated.View>
 
             <View style={styles.tradeButtons}>
-              {isAddToPortfolioMode ? (
-                <Button
-                  title="Add"
-                  buttonStyle={styles.addToPortfolioButton}
-                  loading={isAddingAsset}
-                  disabled={isAddingAsset}
-                  onPress={handleAddToPortfolio}
-                />
-              ) : (
-                <>
-                  <Button
-                    title="Buy"
-                    buttonStyle={[styles.tradeButton, styles.buyButton]}
-                    onPress={handleBuyAsset}
-                  />
-                  <Button
-                    title="Sell"
-                    buttonStyle={[styles.tradeButton, styles.sellButton]}
-                    onPress={handleSellAsset}
-                  />
-                </>
-              )}
+              <Button
+                title="Buy"
+                buttonStyle={[styles.tradeButton, styles.buyButton]}
+                onPress={handleAddAsset}
+                disabled={!selectedPortfolio}
+              />
+              <Button
+                title="Sell"
+                buttonStyle={[styles.tradeButton, styles.sellButton]}
+                onPress={handleSell}
+                disabled={!selectedPortfolio}
+              />
             </View>
           </View>
         )}
 
         <BottomNavSpacer extraSpace={20} />
       </ScrollView>
+
+      {/* Trade Modal */}
+      <SimulateHoldingModal
+        visible={showTradeModal}
+        onClose={() => setShowTradeModal(false)}
+        onSubmit={handleTradeSubmit}
+        asset={selectedAsset}
+        portfolioName={selectedPortfolio?.name || ""}
+        isLoading={isAddingAsset}
+      />
 
       {/* Asset Search Modal */}
       <AssetSearchModal
@@ -720,16 +647,15 @@ const styles = StyleSheet.create({
     marginTop: 4,
   },
   tradeButtons: {
-    flexDirection: "row",
-    justifyContent: "center",
-    alignItems: "center",
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    gap: 12,
     marginTop: 24,
   },
   tradeButton: {
-    width: "48%",
+    flex: 1,
     borderRadius: 8,
     paddingVertical: 12,
-    margin: 5,
   },
   buyButton: {
     backgroundColor: "#4CAF50",
@@ -871,5 +797,57 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: COLORS.textWhite,
     marginBottom: 10,
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "flex-end",
+  },
+  modalContent: {
+    backgroundColor: COLORS.deepPurpleBackground,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 20,
+    minHeight: 300,
+  },
+  modalTitle: {
+    fontSize: 24,
+    fontWeight: "bold",
+    color: COLORS.textWhite,
+    marginBottom: 8,
+  },
+  modalSubtitle: {
+    fontSize: 16,
+    color: COLORS.textSecondary,
+    marginBottom: 24,
+  },
+  modalButton: {
+    borderRadius: 12,
+    paddingVertical: 14,
+    marginBottom: 12,
+  },
+  simulateButton: {
+    backgroundColor: COLORS.primary,
+  },
+  buyNowButton: {
+    backgroundColor: "#4CAF50",
+  },
+  cancelButtonText: {
+    color: COLORS.textSecondary,
+  },
+  tradeSection: {
+    marginTop: 24,
+  },
+  modeToggleContainer: {
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    alignItems: "center",
+    marginBottom: 16,
+    paddingHorizontal: 4,
+  },
+  modeLabel: {
+    color: COLORS.textSecondary,
+    marginRight: 12,
+    fontSize: 14,
   },
 });

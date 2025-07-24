@@ -52,7 +52,6 @@ export const DashboardScreen = ({ navigation }: any) => {
   const [showTooltip, setShowTooltip] = useState(false);
   const [flipAnimation] = useState(new Animated.Value(0));
   const [heightAnimation] = useState(new Animated.Value(180));
-  const scrollViewRef = useRef(null);
   const [chartData, setChartData] = useState<any | undefined>();
 
   // Initial load of portfolios
@@ -191,9 +190,6 @@ export const DashboardScreen = ({ navigation }: any) => {
     navigation.navigate("CreatePortfolio");
   };
 
-  const handleAddAsset = () => {
-    navigation.navigate("Assets");
-  };
 
   const flipCard = () => {
     setShowRiskDetails(!showRiskDetails);
