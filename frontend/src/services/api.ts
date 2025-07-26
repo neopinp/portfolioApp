@@ -103,8 +103,6 @@ export const api = {
 
   // Holdings endpoints
   holdings: {
-    getAll: (portfolioId: number) =>
-      apiRequest(`holdings?portfolioId=${portfolioId}`),
     add: (portfolioId: number, data: AddHoldingDto) =>
       apiRequest(`holdings/${portfolioId}`, {
         method: "POST",
@@ -115,10 +113,27 @@ export const api = {
           boughtAtDate: data.boughtAtDate,
         }),
       }),
+    getAggregatedHoldings: (portfolioId: number) =>
+      apiRequest(`holdings/${portfolioId}/aggregated`),
+    getHoldingsBySymbol: (portfolioId: number, symbol: string) =>
+      apiRequest(`holdings/${portfolioId}/symbol/${symbol}`),
+    getPerformance: (portfolioId: number) =>
+      apiRequest(`holdings/${portfolioId}/performance`),
+    getAnalytics: (portfolioId: number) =>
+      apiRequest(`holdings/${portfolioId}/analytics`),
+    getHistory: (portfolioId: number) => apiRequest(`holdings/${portfolioId}`),
+    createSnapshot: (portfolioId: number) =>
+      apiRequest(`holdings/${portfolioId}/snapshot`, {
+        method: "POST",
+      }),
+    checkSnapshotNeeded: (portfolioId: number) =>
+      apiRequest(`holdings/${portfolioId}/snapshot/check`),
+    getLastSnapshotDate: (portfolioId: number) =>
+      apiRequest(`holdings/${portfolioId}/snapshot/last`),
   },
 };
 
-// Fetch a portfolio with full details
+// Fetch a portfolio with full details - fix
 export const fetchPortfolio = async (id: number): Promise<Portfolio> => {
   try {
     const response = await api.portfolios.getOne(id);

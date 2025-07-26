@@ -30,11 +30,13 @@ model holdings {
 }
 
 model portfolio_snapshots {
-  id           Int         @id @default(autoincrement())
-  portfolioId  Int?        @map("portfolio_id")
-  snapshotDate DateTime?   @default(dbgenerated("CURRENT_DATE")) @map("snapshot_date") @db.Date
-  totalValue   Decimal     @map("total_value") @db.Decimal
-  portfolio    portfolios? @relation(fields: [portfolioId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  id                Int         @id @default(autoincrement())
+  portfolioId       Int?        @map("portfolio_id")
+  snapshotDate      DateTime?   @default(dbgenerated("CURRENT_DATE")) @map("snapshot_date") @db.Date
+  totalValue        Decimal     @map("total_value") @db.Decimal
+  dailyChange       Decimal?    @map("daily_change") @db.Decimal
+  dailyChangePercent Decimal?   @map("daily_change_percent") @db.Decimal
+  portfolio         portfolios? @relation(fields: [portfolioId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 }
 
 model portfolios {

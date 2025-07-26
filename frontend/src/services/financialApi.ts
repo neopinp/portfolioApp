@@ -259,6 +259,18 @@ export const getAssetHistoricalData = async (
 };
 
 // Batching HISTORICAL Data (portfolio dashboard & portfolio screen) *IMPLEMENT*
+export const getMultipleAssetHistoricalDetails = async (
+  symbols: string[],
+  timeRange: string
+): Promise<{
+  data: Array<{ timestamp: number; price: number }>;
+  startDate: string;
+  endDate: string;
+} | null> => {
+  
+  if (!symbols) return null;
+  return null;
+};
 
 // Helper function to get time series parameters
 const getTimeSeriesParams = (

@@ -33,7 +33,8 @@ export class PortfolioService {
       throw error;
     }
   }
-
+   
+  // already functions the same as getHoldings method - general holdings view in the portfolioscreen/dashboard
   async getPortfolio(userId: number, portfolioId: number) {
     return prisma.portfolios.findFirst({
       where: {
