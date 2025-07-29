@@ -8,7 +8,7 @@ import authRoutes from "./backend/routes/authRoutes";
 import portfolioRoutes from "./backend/routes/portfolioroutes";
 import holdingRoutes from "./backend/routes/holdingRoutes";
 import testRoutes from "./backend/routes/testRoutes";
-import { prisma } from "./backend/config/db";
+import { prisma, disconnectPrisma } from "./backend/config/db";
 
 require("dotenv").config();
 
@@ -31,13 +31,29 @@ app.use("/api/holdings", holdingRoutes);
 app.use("/api/test", testRoutes);
 
 const PORT = process.env.PORT || 5000;
-app.listen(PORT, () => {
+const server = app.listen(PORT, () => {
   console.log(`Server is running on port ${PORT}`);
 });
 
 // Graceful shutdown
+process.on("SIGINT", async () => {
+  console.log("Received SIGINT, shutting down gracefully...");
+  server.close(async () => {
+    await disconnectPrisma();
+    process.exit(0);
+  });
+});
+
+process.on("SIGTERM", async () => {
+  console.log("Received SIGTERM, shutting down gracefully...");
+  server.close(async () => {
+    await disconnectPrisma();
+    process.exit(0);
+  });
+});
+
 process.on("beforeExit", async () => {
-  await prisma.$disconnect();
+  await disconnectPrisma();
 });
 
 
