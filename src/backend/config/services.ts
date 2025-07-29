@@ -3,9 +3,9 @@ import { HoldingService } from "../services/holdingservice";
 import { PortfolioService } from "../services/portfolioservice";
 import { FinancialApiService } from "../services/financialApi";
 
-const portfolioService = new PortfolioService();
-const authService = new AuthService();
 const financialApiService = new FinancialApiService();
+const portfolioService = new PortfolioService(financialApiService);
+const authService = new AuthService();
 const holdingService = new HoldingService(portfolioService, financialApiService);
 
 // Controllers use only

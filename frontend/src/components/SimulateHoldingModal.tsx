@@ -14,6 +14,7 @@ import { Text, Button } from '@rneui/themed';
 import DateTimePicker from '@react-native-community/datetimepicker';
 import { COLORS } from '../constants/colors';
 import { Asset } from '../types';
+import { api } from '../services/api';
 
 interface SimulateHoldingModalProps {
   visible: boolean;
@@ -22,6 +23,7 @@ interface SimulateHoldingModalProps {
   asset: Asset | null;
   isLoading: boolean;
   portfolioName: string;
+  portfolioId: number;
 }
 
 export const SimulateHoldingModal = ({
@@ -31,6 +33,7 @@ export const SimulateHoldingModal = ({
   asset,
   isLoading,
   portfolioName,
+  portfolioId,
 }: SimulateHoldingModalProps) => {
   const [isSimulationMode, setIsSimulationMode] = useState(false);
   const [amount, setAmount] = useState('0');
@@ -51,7 +54,8 @@ export const SimulateHoldingModal = ({
     }
   }, [visible, asset]);
 
-  const handleSubmit = () => {
+  // will pass the submitted data to the getAssetHistoricalPerformance function?
+  const handleSubmit = async () => {
     const numAmount = parseFloat(amount);
     const numPrice = parseFloat(price);
 
@@ -65,8 +69,22 @@ export const SimulateHoldingModal = ({
       return;
     }
 
-    setShowDatePicker(false); // Close date picker on submit
-    onSubmit(numAmount, numPrice, date);
+    try {
+      const boughtAtDate = isSimulationMode ? date : new Date();
+      
+      await api.portfolios.generateHistoricalData(portfolioId, {
+        symbol: asset?.symbol || '',
+        shares: numAmount,
+        price: numPrice,
+        boughtAtDate: boughtAtDate.toISOString()
+      });
+      
+      setShowDatePicker(false); // Close date picker on submit
+      onSubmit(numAmount, numPrice, date);
+    } catch (error) {
+      console.error('Error generating historical data:', error);
+      alert('Failed to generate historical data. Please try again.');
+    }
   };
 
   const handleDateChange = (event: any, selectedDate?: Date) => {

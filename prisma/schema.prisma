@@ -39,16 +39,30 @@ model portfolio_snapshots {
   portfolio         portfolios? @relation(fields: [portfolioId], references: [id], onDelete: NoAction, onUpdate: NoAction)
 }
 
+model portfolio_historical_performance {
+  id            Int      @id @default(autoincrement())
+  portfolioId   Int      @map("portfolio_id")
+  date          DateTime @db.Date
+  totalValue    Decimal  @map("total_value") @db.Decimal
+  holdingsData  Json?    @map("holdings_data")
+  createdAt     DateTime @default(now()) @map("created_at") @db.Timestamp(6)
+  portfolio     portfolios @relation(fields: [portfolioId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+
+  @@unique([portfolioId, date])
+  @@index([portfolioId, date])
+}
+
 model portfolios {
-  id                 Int                   @id @default(autoincrement())
-  userId             Int                   // Remove @map since column is already camelCase
-  name               String?               @db.VarChar(100)
-  createdAt          DateTime?             @default(now()) @map("created_at") @db.Timestamp(6)
-  startingBalance    Decimal               @default(0) @map("starting_balance") @db.Decimal
-  riskScore          Int                   @default(5) @map("risk_score")
-  holdings           holdings[]
-  portfolioSnapshots portfolio_snapshots[]
-  user               users                 @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  id                           Int                              @id @default(autoincrement())
+  userId                       Int                              // Remove @map since column is already camelCase
+  name                         String?                          @db.VarChar(100)
+  createdAt                    DateTime?                        @default(now()) @map("created_at") @db.Timestamp(6)
+  startingBalance              Decimal                          @default(0) @map("starting_balance") @db.Decimal
+  riskScore                    Int                              @default(5) @map("risk_score")
+  holdings                     holdings[]
+  portfolioSnapshots           portfolio_snapshots[]
+  portfolioHistoricalPerformance portfolio_historical_performance[]
+  user                         users                            @relation(fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
 }
 
 model users {

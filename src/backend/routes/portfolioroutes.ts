@@ -5,6 +5,7 @@ import {
   getPortfolios,
   getPortfolio,
   deletePortfolio,
+  generateHistoricalData,
 } from "../controllers/portfolioController";
 
 const router = express.Router();
@@ -17,5 +18,8 @@ router.post("/", createPortfolio);
 router.get("/", getPortfolios);
 router.get("/:id", getPortfolio);
 router.delete("/:id", deletePortfolio);
+
+// Historical data generation route
+router.post("/:portfolioId/historical-data", generateHistoricalData);
 
 export default router;

@@ -93,6 +93,19 @@ export const api = {
         method: "POST",
         body: JSON.stringify(data),
       }),
+    generateHistoricalData: (
+      portfolioId: number,
+      assetData: {
+        symbol: string;
+        shares: number;
+        price: number;
+        boughtAtDate: string;
+      }
+    ) =>
+      apiRequest(`portfolios/${portfolioId}/historical-data`, {
+        method: "POST",
+        body: JSON.stringify(assetData),
+      }),
   },
 
   // User preferences endpoints
