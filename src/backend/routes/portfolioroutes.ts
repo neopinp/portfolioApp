@@ -20,6 +20,11 @@ router.get("/:id", getPortfolio);
 router.delete("/:id", deletePortfolio);
 
 // Historical data generation route
-router.post("/:portfolioId/historical-data", generateHistoricalData);
+router.post("/:id/historical-data", (req, res, next) => {
+  console.log("Historical data route hit!");
+  console.log("Portfolio ID:", req.params.id);
+  console.log("Request body:", req.body);
+  next();
+}, generateHistoricalData);
 
 export default router;

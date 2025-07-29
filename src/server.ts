@@ -17,6 +17,13 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+// Add request logging middleware
+app.use((req, res, next) => {
+  console.log(`${new Date().toISOString()} - ${req.method} ${req.path}`);
+  console.log('Request body:', req.body);
+  next();
+});
+
 // Register routes
 app.use("/api/auth", authRoutes);
 app.use("/api/portfolios", portfolioRoutes);

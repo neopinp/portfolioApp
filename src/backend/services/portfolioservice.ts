@@ -93,26 +93,62 @@ export class PortfolioService {
       boughtAtDate: Date;
     }
   ) {
+    console.log("PortfolioService - generatePortfolioHistoricalData called with:", {
+      userId,
+      portfolioId,
+      assetData
+    });
+
     // Validate portfolio exists and belongs to user
     const portfolio = await this.getPortfolio(userId, portfolioId);
     if (!portfolio) {
+      console.log("PortfolioService - Portfolio not found");
       throw new NotFoundError(
         "Portfolio does not exist or does not belong to user"
       );
     }
 
+    console.log("PortfolioService - Portfolio found:", portfolio.id);
+
     try {
-      // Get historical data for the asset from boughtAtDate to today
-      const historicalData =
-        await this.financialApiService.getAssetHistoricalData(
+      console.log("PortfolioService - Fetching data for:", assetData.symbol);
+      
+      // Check if boughtAtDate is today
+      const today = new Date();
+      const isToday = assetData.boughtAtDate.toDateString() === today.toDateString();
+      
+      let historicalData;
+      
+      if (isToday) {
+        console.log("PortfolioService - Using Finnhub for current price (today's date)");
+        // For today's date, get current price from Finnhub
+        const currentPrice = await this.financialApiService.getQuote(assetData.symbol);
+        if (!currentPrice) {
+          throw new Error(`Failed to get current price for ${assetData.symbol}`);
+        }
+        historicalData = [{
+          date: today.toISOString().split('T')[0],
+          price: currentPrice.c
+        }];
+      } else {
+        console.log("PortfolioService - Using Twelve Data for historical data (past date)");
+        // For past dates, get historical data from Twelve Data
+        historicalData = await this.financialApiService.getAssetHistoricalData(
           assetData.symbol,
           assetData.boughtAtDate,
           new Date()
         );
+      }
+      
+      console.log("PortfolioService - Data received:", historicalData.length, "data points");
+      
       if (historicalData.length === 0) {
-        throw new Error(`No historical data found for ${assetData.symbol}`);
+        console.log("PortfolioService - No data found");
+        throw new Error(`No data found for ${assetData.symbol}`);
       }
 
+      console.log("PortfolioService - Fetching existing portfolio data");
+      
       // Get existing portfolio historical data
       const existingData =
         await prisma.portfolio_historical_performance.findMany({
@@ -127,6 +163,8 @@ export class PortfolioService {
           },
         });
 
+      console.log("PortfolioService - Existing data found:", existingData.length, "entries");
+
       // Process each historical data point
       for (const dataPoint of historicalData) {
         const date = new Date(dataPoint.date);
@@ -138,6 +176,7 @@ export class PortfolioService {
         );
 
         if (existingEntry) {
+          console.log("PortfolioService - Updating existing entry for date:", dataPoint.date);
           // Update existing entry by adding the new asset value
           await prisma.portfolio_historical_performance.update({
             where: { id: existingEntry.id },
@@ -154,6 +193,7 @@ export class PortfolioService {
             },
           });
         } else {
+          console.log("PortfolioService - Creating new entry for date:", dataPoint.date);
           // Create new entry
           await prisma.portfolio_historical_performance.create({
             data: {
@@ -172,12 +212,13 @@ export class PortfolioService {
         }
       }
 
+      console.log("PortfolioService - Historical data generation completed successfully");
       return {
         success: true,
         message: "Historical data generated successfully",
       };
     } catch (error) {
-      console.error("Error generating portfolio historical data:", error);
+      console.error("PortfolioService - Error generating portfolio historical data:", error);
       throw error;
     }
   }

@@ -72,6 +72,9 @@ export const SimulateHoldingModal = ({
     try {
       const boughtAtDate = isSimulationMode ? date : new Date();
       
+      // Always generate historical data to update database portfolio value
+      console.log("SimulateHoldingModal portfolioId:", portfolioId, typeof portfolioId);
+      
       await api.portfolios.generateHistoricalData(portfolioId, {
         symbol: asset?.symbol || '',
         shares: numAmount,

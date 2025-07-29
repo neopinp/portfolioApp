@@ -28,12 +28,23 @@ export class FinancialApiService {
     endDate: Date
   ): Promise<HistoricalDataPoint[]> {
     try {
+      console.log("FinancialApiService - getAssetHistoricalData called with:", {
+        symbol,
+        startDate: startDate.toISOString(),
+        endDate: endDate.toISOString()
+      });
+      
       const startDateStr = startDate.toISOString().split('T')[0];
       const endDateStr = endDate.toISOString().split('T')[0];
       
       const url = `${TWELVE_DATA_BASE_URL}/time_series?symbol=${encodeURIComponent(symbol)}&interval=1day&start_date=${startDateStr}&end_date=${endDateStr}&apikey=${TWELVE_DATA_API_KEY}`;
       
+      console.log("FinancialApiService - API URL:", url);
+      console.log("FinancialApiService - API Key (first 10 chars):", TWELVE_DATA_API_KEY.substring(0, 10) + "...");
+      
       const response = await fetch(url);
+      
+      console.log("FinancialApiService - Response status:", response.status);
       
       if (!response.ok) {
         console.error(`Failed to fetch historical data for ${symbol}: ${response.status}`);
@@ -41,6 +52,8 @@ export class FinancialApiService {
       }
 
       const data = await response.json();
+      
+      console.log("FinancialApiService - Response data:", data);
       
       if (!data || !data.values || !Array.isArray(data.values)) {
         console.error(`Invalid historical data for ${symbol}:`, data);
@@ -53,6 +66,7 @@ export class FinancialApiService {
         price: parseFloat(item.close)
       }));
 
+      console.log("FinancialApiService - Transformed data points:", historicalData.length);
       return historicalData;
     } catch (error) {
       console.error(`Error fetching historical data for ${symbol}:`, error);

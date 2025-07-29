@@ -17,8 +17,8 @@ export const createPortfolio = async (
   res: Response
 ): Promise<void> => {
   try {
-    console.log('Creating portfolio with body:', req.body);
-    console.log('User:', req.user);
+    console.log("Creating portfolio with body:", req.body);
+    console.log("User:", req.user);
 
     if (!req.user?.id) {
       res.status(401).json({ error: "User not authenticated" });
@@ -33,7 +33,7 @@ export const createPortfolio = async (
 
     // Validate required fields
     const { name, startingBalance, riskScore } = req.body;
-    console.log('Parsed fields:', { name, startingBalance, riskScore });
+    console.log("Parsed fields:", { name, startingBalance, riskScore });
 
     if (!name || typeof name !== "string") {
       res.status(400).json({ error: "Missing Portfolio Name" });
@@ -56,13 +56,18 @@ export const createPortfolio = async (
       return;
     }
 
-    console.log('Creating portfolio with data:', { userId, name, startingBalance, riskScore });
+    console.log("Creating portfolio with data:", {
+      userId,
+      name,
+      startingBalance,
+      riskScore,
+    });
     const portfolio = await services.portfolio.createPortfolio(userId, {
       name,
       startingBalance,
       riskScore,
     });
-    console.log('Created portfolio:', portfolio);
+    console.log("Created portfolio:", portfolio);
     res.json(portfolio);
   } catch (error) {
     console.error("Create Portfolio Error", error);
@@ -75,24 +80,27 @@ export const getPortfolios = async (
   res: Response
 ): Promise<void> => {
   try {
-    console.log('Getting portfolios for user:', req.user);
+    console.log("Getting portfolios for user:", req.user);
 
     if (!req.user?.id) {
-      console.log('No user ID found in request');
+      console.log("No user ID found in request");
       res.status(401).json({ error: "User not authenticated" });
       return;
     }
 
     const userId = parseInt(req.user.id);
     if (isNaN(userId)) {
-      console.log('Invalid user ID:', req.user.id);
+      console.log("Invalid user ID:", req.user.id);
       res.status(400).json({ error: "Invalid user ID" });
       return;
     }
 
-    console.log('Fetching portfolios for userId:', userId);
+    console.log("Fetching portfolios for userId:", userId);
     const portfolios = await services.portfolio.getPortfolios(userId);
-    console.log('Raw portfolios response:', JSON.stringify(portfolios, null, 2));
+    console.log(
+      "Raw portfolios response:",
+      JSON.stringify(portfolios, null, 2)
+    );
     res.json(portfolios);
   } catch (error) {
     console.error("Get Portfolios Error - Full error:", error);
@@ -142,5 +150,74 @@ export const deletePortfolio = async (
       return;
     }
     res.status(500).json({ error: "Failed to Delete Portfolio" });
+  }
+};
+
+export const generateHistoricalData = async (
+  req: AuthenticatedRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    console.log("Generate Historical Data - Request body:", req.body);
+    console.log("Generate Historical Data - User:", req.user);
+    
+    const userId = parseInt((req.user as any).id);
+    const portfolioId = parseInt(req.params.id);
+    
+    console.log("Generate Historical Data - Parsed IDs:", { userId, portfolioId });
+    
+    const portfolio = await services.portfolio.getPortfolio(
+      userId,
+      portfolioId
+    );
+
+    if (!portfolio) {
+      console.log("Generate Historical Data - Portfolio not found");
+      res.status(404).json({ error: "Portfolio not Found" });
+      return;
+    }
+
+    const assetData = req.body;
+    console.log("Generate Historical Data - Asset data:", assetData);
+    
+    if (!assetData.symbol || !assetData.shares || !assetData.boughtAtDate) {
+      console.log("Generate Historical Data - Missing required fields");
+      res.status(400).json({
+        error: "Missing required fields: symbol, shares, boughtAtDate",
+      });
+      return;
+    }
+
+    console.log("Generate Historical Data - Calling service with:", {
+      userId,
+      portfolioId,
+      assetData: {
+        symbol: assetData.symbol,
+        shares: assetData.shares,
+        price: assetData.price,
+        boughtAtDate: new Date(assetData.boughtAtDate),
+      }
+    });
+
+    const result = await services.portfolio.generatePortfolioHistoricalData(
+      userId,
+      portfolioId,
+      {
+        symbol: assetData.symbol,
+        shares: assetData.shares,
+        price: assetData.price,
+        boughtAtDate: new Date(assetData.boughtAtDate),
+      }
+    );
+    
+    console.log("Generate Historical Data - Success result:", result);
+    res.json(result);
+  } catch (error) {
+    console.error("Generate Historical Data - Full error:", error);
+    if (error instanceof Error) {
+      console.error("Generate Historical Data - Error message:", error.message);
+      console.error("Generate Historical Data - Error stack:", error.stack);
+    }
+    res.status(500).json({ error: "Failed to generate historical data" });
   }
 };

@@ -175,11 +175,10 @@ export const AssetsScreen = ({ navigation }: any) => {
   };
 
   const handleAddAsset = () => {
-    if (!selectedAsset || !selectedPortfolio) {
-      Alert.alert("Error", "Please select an asset first.");
+    if (!selectedPortfolio) {
+      alert("Please select a portfolio first before adding assets.");
       return;
     }
-
     setShowTradeModal(true);
   };
 
@@ -534,6 +533,7 @@ export const AssetsScreen = ({ navigation }: any) => {
         onSubmit={handleTradeSubmit}
         asset={selectedAsset}
         portfolioName={selectedPortfolio?.name || ""}
+        portfolioId={selectedPortfolio?.id || 0}
         isLoading={isAddingAsset}
       />
 
