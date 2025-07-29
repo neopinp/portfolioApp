@@ -6,6 +6,7 @@ import {
   getPortfolio,
   deletePortfolio,
   generateHistoricalData,
+  updateCurrentValue,
 } from "../controllers/portfolioController";
 
 const router = express.Router();
@@ -19,12 +20,20 @@ router.get("/", getPortfolios);
 router.get("/:id", getPortfolio);
 router.delete("/:id", deletePortfolio);
 
-// Historical data generation route
+// Historical data generation route (for simulation mode)
 router.post("/:id/historical-data", (req, res, next) => {
   console.log("Historical data route hit!");
   console.log("Portfolio ID:", req.params.id);
   console.log("Request body:", req.body);
   next();
 }, generateHistoricalData);
+
+// Current value update route (for real trading mode)
+router.post("/:id/current-value", (req, res, next) => {
+  console.log("Current value route hit!");
+  console.log("Portfolio ID:", req.params.id);
+  console.log("Request body:", req.body);
+  next();
+}, updateCurrentValue);
 
 export default router;

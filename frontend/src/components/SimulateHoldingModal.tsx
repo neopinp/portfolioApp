@@ -72,21 +72,36 @@ export const SimulateHoldingModal = ({
     try {
       const boughtAtDate = isSimulationMode ? date : new Date();
       
-      // Always generate historical data to update database portfolio value
-      console.log("SimulateHoldingModal portfolioId:", portfolioId, typeof portfolioId);
+      // Check if the boughtAtDate is today
+      const today = new Date();
+      const isToday = boughtAtDate.toDateString() === today.toDateString();
       
-      await api.portfolios.generateHistoricalData(portfolioId, {
-        symbol: asset?.symbol || '',
-        shares: numAmount,
-        price: numPrice,
-        boughtAtDate: boughtAtDate.toISOString()
-      });
+      if (isToday) {
+        // For today's date, use current value update (real trading mode)
+        console.log("SimulateHoldingModal - Using current value update for today");
+        
+        await api.portfolios.updateCurrentValue(portfolioId, {
+          symbol: asset?.symbol || '',
+          shares: numAmount,
+          price: numPrice
+        });
+      } else {
+        // For past dates, use historical data generation (simulation mode)
+        console.log("SimulateHoldingModal - Using historical data generation for past date");
+        
+        await api.portfolios.generateHistoricalData(portfolioId, {
+          symbol: asset?.symbol || '',
+          shares: numAmount,
+          price: numPrice,
+          boughtAtDate: boughtAtDate.toISOString()
+        });
+      }
       
       setShowDatePicker(false); // Close date picker on submit
       onSubmit(numAmount, numPrice, date);
     } catch (error) {
-      console.error('Error generating historical data:', error);
-      alert('Failed to generate historical data. Please try again.');
+      console.error('Error updating portfolio value:', error);
+      alert('Failed to update portfolio value. Please try again.');
     }
   };
 

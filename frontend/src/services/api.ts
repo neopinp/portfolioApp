@@ -106,6 +106,18 @@ export const api = {
         method: "POST",
         body: JSON.stringify(assetData),
       }),
+    updateCurrentValue: (
+      portfolioId: number,
+      assetData: {
+        symbol: string;
+        shares: number;
+        price: number;
+      }
+    ) =>
+      apiRequest(`portfolios/${portfolioId}/current-value`, {
+        method: "POST",
+        body: JSON.stringify(assetData),
+      }),
   },
 
   // User preferences endpoints

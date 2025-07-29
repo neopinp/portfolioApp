@@ -164,8 +164,6 @@ export const generateHistoricalData = async (
     const userId = parseInt((req.user as any).id);
     const portfolioId = parseInt(req.params.id);
     
-    console.log("Generate Historical Data - Parsed IDs:", { userId, portfolioId });
-    
     const portfolio = await services.portfolio.getPortfolio(
       userId,
       portfolioId
@@ -219,5 +217,72 @@ export const generateHistoricalData = async (
       console.error("Generate Historical Data - Error stack:", error.stack);
     }
     res.status(500).json({ error: "Failed to generate historical data" });
+  }
+};
+
+export const updateCurrentValue = async (
+  req: AuthenticatedRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    console.log("Update Current Value - Request body:", req.body);
+    console.log("Update Current Value - User:", req.user);
+    
+    const userId = parseInt((req.user as any).id);
+    const portfolioId = parseInt(req.params.id);
+    
+    console.log("Update Current Value - Parsed IDs:", { userId, portfolioId });
+    
+    const portfolio = await services.portfolio.getPortfolio(
+      userId,
+      portfolioId
+    );
+
+    if (!portfolio) {
+      console.log("Update Current Value - Portfolio not found");
+      res.status(404).json({ error: "Portfolio not Found" });
+      return;
+    }
+
+    const assetData = req.body;
+    console.log("Update Current Value - Asset data:", assetData);
+
+    if (!assetData.symbol || !assetData.shares) {
+      console.log("Update Current Value - Missing required fields");
+      res.status(400).json({
+        error: "Missing required fields: symbol, shares",
+      });
+      return;
+    }
+
+    console.log("Update Current Value - Calling service with:", {
+      userId,
+      portfolioId,
+      assetData: {
+        symbol: assetData.symbol,
+        shares: assetData.shares,
+        price: assetData.price
+      }
+    });
+
+    const result = await services.portfolio.updatePortfolioCurrentValue(
+      userId,
+      portfolioId,
+      {
+        symbol: assetData.symbol,
+        shares: assetData.shares,
+        price: assetData.price,
+      }
+    );
+
+    console.log("Update Current Value - Success result:", result);
+    res.json(result);
+  } catch (error) {
+    console.error("Update Current Value - Full error:", error);
+    if (error instanceof Error) {
+      console.error("Update Current Value - Error message:", error.message);
+      console.error("Update Current Value - Error stack:", error.stack);
+    }
+    res.status(500).json({ error: "Failed to update current value" });
   }
 };
