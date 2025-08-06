@@ -33,9 +33,7 @@ export const DashboardScreen = ({ navigation }: any) => {
     setSelectedPortfolio: setContextPortfolio,
   } = usePortfolio();
   const [portfolios, setPortfolios] = useState<Portfolio[]>([]);
-  const [selectedPortfolio, setSelectedPortfolio] = useState<Portfolio | null>(
-    contextPortfolio
-  );
+  // Using context directly instead of local state
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [timeRanges] = useState(["1D", "1W", "1M", "3M", "6M"]);
@@ -123,7 +121,8 @@ export const DashboardScreen = ({ navigation }: any) => {
       };
 
       setPortfolios([transformedPortfolio]);
-      setSelectedPortfolio(transformedPortfolio);
+      console.log("Setting initial portfolio in context:", transformedPortfolio.id, transformedPortfolio.name);
+      setContextPortfolio(transformedPortfolio); // Set in context
       setHasCreatedInitialPortfolio(true);
     } catch (err) {
       console.error("Error creating initial portfolio:", err);
@@ -161,7 +160,24 @@ export const DashboardScreen = ({ navigation }: any) => {
         }));
 
         setPortfolios(transformedPortfolios);
-        setSelectedPortfolio(transformedPortfolios[0]);
+        
+        // existing portfolio context 
+        if (contextPortfolio) {
+          const existingPortfolio = transformedPortfolios.find((p: Portfolio) => p.id === contextPortfolio.id);
+          if (existingPortfolio) {
+            console.log("Maintaining existing selected portfolio:", existingPortfolio.id, existingPortfolio.name);
+            setContextPortfolio(existingPortfolio);
+            return;
+          }
+        }
+        
+        // Otherwise, set first portfolio as selected in context
+        if (transformedPortfolios.length > 0) {
+          console.log("Setting first portfolio in context:", transformedPortfolios[0].id, transformedPortfolios[0].name);
+          setContextPortfolio(transformedPortfolios[0]);
+        } else {
+          console.log("No portfolios to set in context");
+        }
       }
     } catch (err) {
       console.error("Error loading portfolios:", err);
@@ -175,14 +191,13 @@ export const DashboardScreen = ({ navigation }: any) => {
   const handlePortfolioPress = (portfolioId: number) => {
     const portfolio = portfolios.find((p) => p.id === portfolioId);
     if (portfolio) {
-      setSelectedPortfolio(portfolio);
-      setContextPortfolio(portfolio);
+      setContextPortfolio(portfolio); // Set in context only
     }
   };
 
   const handleChartPress = () => {
-    if (selectedPortfolio) {
-      navigation.navigate("Portfolio", { portfolioId: selectedPortfolio.id });
+    if (contextPortfolio) {
+      navigation.navigate("Portfolio", { portfolioId: contextPortfolio.id });
     }
   };
 
@@ -204,7 +219,7 @@ export const DashboardScreen = ({ navigation }: any) => {
 
     // Height animation - dynamically calculate based on holdings count
     const baseHeight = 180;
-    const holdingsCount = selectedPortfolio?.holdings?.length || 0;
+    const holdingsCount = contextPortfolio?.holdings?.length || 0;
     const expandedHeight =
       holdingsCount === 0
         ? baseHeight // Empty state height
@@ -265,7 +280,7 @@ export const DashboardScreen = ({ navigation }: any) => {
           riskScore={item.riskScore}
           change={item.change}
           onPress={() => handlePortfolioPress(item.id)}
-          isSelected={selectedPortfolio?.id === item.id}
+          isSelected={contextPortfolio?.id === item.id}
         />
       );
     }
@@ -425,33 +440,20 @@ export const DashboardScreen = ({ navigation }: any) => {
 
   // Add effect to load chart data when portfolio or time range changes
   useEffect(() => {
-    loadChartData(selectedPortfolio, selectedRange);
-  }, [selectedPortfolio, selectedRange]);
+    loadChartData(contextPortfolio, selectedRange);
+  }, [contextPortfolio, selectedRange]);
 
   // Update the chart data object
   const chartDataProps = {
-    value: selectedPortfolio ? selectedPortfolio.value : 0,
-    change: selectedPortfolio ? selectedPortfolio.change : 0,
+    value: contextPortfolio ? contextPortfolio.value : 0,
+    change: contextPortfolio ? contextPortfolio.change : 0,
     timeRanges,
     selectedRange,
     onRangeSelect: setSelectedRange,
     chartData: chartData, // Add the historical data
   };
 
-  // Update the effect to sync the local state with the context
-  useEffect(() => {
-    if (contextPortfolio) {
-      setSelectedPortfolio(contextPortfolio);
-    }
-  }, [contextPortfolio]);
-
-  // Update local state when portfolios are loaded
-  useEffect(() => {
-    if (portfolios.length > 0 && !selectedPortfolio) {
-      setSelectedPortfolio(portfolios[0]);
-      setContextPortfolio(portfolios[0]);
-    }
-  }, [portfolios, selectedPortfolio]);
+  // No need to sync local state with context anymore since we're using context directly
 
   // In the render section, we need to handle the async nature of risk calculations
   const [riskRatings, setRiskRatings] = useState<Record<string, number>>({});
@@ -460,21 +462,21 @@ export const DashboardScreen = ({ navigation }: any) => {
   // Effect to load risk ratings when portfolio changes
   useEffect(() => {
     const loadRiskRatings = async () => {
-      if (!selectedPortfolio || !selectedPortfolio.holdings) return;
+      if (!contextPortfolio || !contextPortfolio.holdings) return;
 
       const ratings: Record<string, number> = {};
-      for (const holding of selectedPortfolio.holdings) {
+      for (const holding of contextPortfolio.holdings) {
         const symbol = holding.symbol || holding.assetSymbol;
         ratings[symbol] = await calculateAssetRiskRating(symbol);
       }
       setRiskRatings(ratings);
 
-      const avgRisk = await calculateAverageRiskRating(selectedPortfolio);
+      const avgRisk = await calculateAverageRiskRating(contextPortfolio);
       setAverageRisk(avgRisk);
     };
 
     loadRiskRatings();
-  }, [selectedPortfolio]);
+  }, [contextPortfolio]);
 
   if (isLoading) {
     return (
@@ -526,7 +528,7 @@ export const DashboardScreen = ({ navigation }: any) => {
           activeOpacity={0.8}
         >
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>{selectedPortfolio?.name}</Text>
+            <Text style={styles.sectionTitle}>{contextPortfolio?.name}</Text>
             <Text style={styles.tapHint}>Tap to view</Text>
           </View>
           <TimeSeriesChart data={chartDataProps} onPress={handleChartPress} />
@@ -593,9 +595,9 @@ export const DashboardScreen = ({ navigation }: any) => {
                   { display: showRiskDetails ? "flex" : "none" },
                 ]}
               >
-                {selectedPortfolio && selectedPortfolio.holdings.length > 0 ? (
+                {contextPortfolio && contextPortfolio.holdings.length > 0 ? (
                   <View style={styles.assetsList}>
-                    {selectedPortfolio.holdings.map((holding) => {
+                    {contextPortfolio.holdings.map((holding) => {
                       const symbol = holding.symbol || holding.assetSymbol;
                       const riskRating = riskRatings[symbol] || 0;
                       return (

@@ -8,7 +8,8 @@ export const STORAGE_KEYS = {
   FIRST_LAUNCH: 'first_launch',
   ONBOARDING_COMPLETE: 'onboarding_complete',
   APP_PREFERENCES: 'app_preferences',
-  USER_PREFERENCES: 'user_preferences'
+  USER_PREFERENCES: 'user_preferences',
+  SELECTED_PORTFOLIO: 'selected_portfolio'
 } as const;
 
 // Type for storage keys

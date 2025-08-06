@@ -26,8 +26,12 @@ export const PortfolioScreen = ({ route, navigation }: any) => {
   const { portfolioId: routePortfolioId } = route.params || {};
   const { selectedPortfolio: contextPortfolio } = usePortfolio();
 
+  console.log("PortfolioScreen - Context portfolio:", contextPortfolio?.id, contextPortfolio?.name);
+  console.log("PortfolioScreen - Route portfolio ID:", routePortfolioId);
+
   // Use the portfolioId from route params if available, otherwise use the one from context
   const portfolioId = routePortfolioId || contextPortfolio?.id;
+  console.log("PortfolioScreen - Using portfolio ID:", portfolioId);
 
   const { user } = useAuth();
   const [timeRanges] = useState(["1D", "1W", "1M", "3M", "6M"]);
@@ -103,7 +107,7 @@ export const PortfolioScreen = ({ route, navigation }: any) => {
         // Transform the response to match our expected format
         const portfolioData = {
           name: response.portfolio?.name || "Portfolio",
-          value: Number(response.portfolio?.starting_balance) || 0,
+          value: Number(response.portfolio?.startingBalance) || 0,
           change: 0, // Default to 0 if not available
           holdings: response.portfolio?.holdings || [],
         };

@@ -33,7 +33,8 @@ import {
 import { ChartData } from "../types";
 
 export const AssetsScreen = ({ navigation }: any) => {
-  const { selectedPortfolio } = usePortfolio();
+  const { selectedPortfolio: contextPortfolio } = usePortfolio();
+  console.log("AssetsScreen - Context portfolio:", contextPortfolio?.id, contextPortfolio?.name);
   const { user } = useAuth();
   const [selectedAsset, setSelectedAsset] = useState<Asset | null>(null);
   const [searchModalVisible, setSearchModalVisible] = useState(false);
@@ -175,7 +176,7 @@ export const AssetsScreen = ({ navigation }: any) => {
   };
 
   const handleAddAsset = () => {
-    if (!selectedPortfolio) {
+    if (!contextPortfolio) {
       alert("Please select a portfolio first before adding assets.");
       return;
     }
@@ -183,12 +184,12 @@ export const AssetsScreen = ({ navigation }: any) => {
   };
 
   const handleTradeSubmit = async (amount: number, price: number, date: Date) => {
-    if (!selectedAsset || !selectedPortfolio) return;
+    if (!selectedAsset || !contextPortfolio) return;
 
     try {
       setIsAddingAsset(true);
 
-      await api.holdings.add(selectedPortfolio.id, {
+      await api.holdings.add(contextPortfolio.id, {
         symbol: selectedAsset.symbol,
         amount,
         boughtAtPrice: price,
@@ -511,13 +512,13 @@ export const AssetsScreen = ({ navigation }: any) => {
                 title="Buy"
                 buttonStyle={[styles.tradeButton, styles.buyButton]}
                 onPress={handleAddAsset}
-                disabled={!selectedPortfolio}
+                disabled={!contextPortfolio}
               />
               <Button
                 title="Sell"
                 buttonStyle={[styles.tradeButton, styles.sellButton]}
                 onPress={handleSell}
-                disabled={!selectedPortfolio}
+                disabled={!contextPortfolio}
               />
             </View>
           </View>
@@ -532,8 +533,8 @@ export const AssetsScreen = ({ navigation }: any) => {
         onClose={() => setShowTradeModal(false)}
         onSubmit={handleTradeSubmit}
         asset={selectedAsset}
-        portfolioName={selectedPortfolio?.name || ""}
-        portfolioId={selectedPortfolio?.id || 0}
+        portfolioName={contextPortfolio?.name || ""}
+        portfolioId={contextPortfolio?.id || 0}
         isLoading={isAddingAsset}
       />
 
