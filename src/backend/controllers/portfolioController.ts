@@ -160,10 +160,10 @@ export const generateHistoricalData = async (
   try {
     console.log("Generate Historical Data - Request body:", req.body);
     console.log("Generate Historical Data - User:", req.user);
-    
+
     const userId = parseInt((req.user as any).id);
     const portfolioId = parseInt(req.params.id);
-    
+
     const portfolio = await services.portfolio.getPortfolio(
       userId,
       portfolioId
@@ -177,7 +177,7 @@ export const generateHistoricalData = async (
 
     const assetData = req.body;
     console.log("Generate Historical Data - Asset data:", assetData);
-    
+
     if (!assetData.symbol || !assetData.shares || !assetData.boughtAtDate) {
       console.log("Generate Historical Data - Missing required fields");
       res.status(400).json({
@@ -194,7 +194,7 @@ export const generateHistoricalData = async (
         shares: assetData.shares,
         price: assetData.price,
         boughtAtDate: new Date(assetData.boughtAtDate),
-      }
+      },
     });
 
     const result = await services.portfolio.generatePortfolioHistoricalData(
@@ -207,7 +207,7 @@ export const generateHistoricalData = async (
         boughtAtDate: new Date(assetData.boughtAtDate),
       }
     );
-    
+
     console.log("Generate Historical Data - Success result:", result);
     res.json(result);
   } catch (error) {
@@ -227,12 +227,12 @@ export const updateCurrentValue = async (
   try {
     console.log("Update Current Value - Request body:", req.body);
     console.log("Update Current Value - User:", req.user);
-    
+
     const userId = parseInt((req.user as any).id);
     const portfolioId = parseInt(req.params.id);
-    
+
     console.log("Update Current Value - Parsed IDs:", { userId, portfolioId });
-    
+
     const portfolio = await services.portfolio.getPortfolio(
       userId,
       portfolioId
@@ -261,8 +261,8 @@ export const updateCurrentValue = async (
       assetData: {
         symbol: assetData.symbol,
         shares: assetData.shares,
-        price: assetData.price
-      }
+        price: assetData.price,
+      },
     });
 
     const result = await services.portfolio.updatePortfolioCurrentValue(
@@ -284,5 +284,49 @@ export const updateCurrentValue = async (
       console.error("Update Current Value - Error stack:", error.stack);
     }
     res.status(500).json({ error: "Failed to update current value" });
+  }
+};
+
+export const getPortfolioChartData = async (
+  req: AuthenticatedRequest,
+  res: Response
+): Promise<void> => {
+  try {
+    console.log("Get Portfolio Chart Data - Request:", {
+      user: req.user,
+      params: req.params,
+      query: req.query
+    });
+    
+    const userId = parseInt((req.user as any).id);
+    const portfolioId = parseInt(req.params.id);
+    
+    console.log("Get Portfolio Chart Data - Parsed IDs:", { userId, portfolioId });
+    
+    // Get the time range from query parameter, default to "1M"
+    const timeRange = (req.query.timeRange as string) || "1M";
+    
+    console.log("Get Portfolio Chart Data - Time Range:", timeRange);
+
+    const chartData = await services.portfolio.getPortfolioChartData(
+      userId,
+      portfolioId,
+      timeRange
+    );
+
+    console.log("Get Portfolio Chart Data - Success");
+    res.json(chartData);
+  } catch (error) {
+    console.error("Get Portfolio Chart Data - Full error:", error);
+    if (error instanceof Error) {
+      console.error("Get Portfolio Chart Data - Error message:", error.message);
+      console.error("Get Portfolio Chart Data - Error stack:", error.stack);
+    }
+    
+    if (error instanceof Error && error.name === "NotFoundError") {
+      res.status(404).json({ error: error.message });
+    } else {
+      res.status(500).json({ error: "Failed to get portfolio chart data" });
+    }
   }
 };

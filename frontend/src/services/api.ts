@@ -118,6 +118,12 @@ export const api = {
         method: "POST",
         body: JSON.stringify(assetData),
       }),
+    getChartData: (
+      portfolioId: number,
+      timeRange: string = "1M"
+    ) =>
+      apiRequest(`portfolios/${portfolioId}/chart?timeRange=${timeRange}`),
+    
   },
 
   // User preferences endpoints

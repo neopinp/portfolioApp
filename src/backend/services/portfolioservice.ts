@@ -209,19 +209,23 @@ export class PortfolioService {
     }
 
     // Batch fetch existing entries for all dates at once
-    const dates = historicalData.map(d => new Date(d.date));
-    const existingEntries = await prisma.portfolio_historical_performance.findMany({
-      where: {
-        portfolioId,
-        date: {
-          in: dates,
+    const dates = historicalData.map((d) => new Date(d.date));
+    const existingEntries =
+      await prisma.portfolio_historical_performance.findMany({
+        where: {
+          portfolioId,
+          date: {
+            in: dates,
+          },
         },
-      },
-    });
+      });
 
     // Create a map for quick lookup
     const existingEntriesMap = new Map(
-      existingEntries.map(entry => [entry.date.toISOString().split('T')[0], entry])
+      existingEntries.map((entry) => [
+        entry.date.toISOString().split("T")[0],
+        entry,
+      ])
     );
 
     // Prepare batch operations
@@ -302,12 +306,121 @@ export class PortfolioService {
     };
   }
 
-  // for charting purposes - when the user selects a timeRange it should fetch from the database with date indexing
-  async getPortfolioHistoricalPerformance(
+  // retrieve and transform the chart data
+  async getPortfolioChartData(
     userId: number,
     portfolioId: number,
     timeRange: string
-  ) {}
+  ) {
+    const portfolio = await this.getPortfolio(userId, portfolioId);
 
-  async getPortfolioChartData(portfolioId: number, timeRange: string) {}
+    if (!portfolio) {
+      throw new NotFoundError("Portfolio not found or does not belong to user");
+    }
+
+    const endDate = new Date();
+    const requestedStartDate = this.getStartDatefromTimeRange(timeRange);
+
+    // find the earliest available data point for this portfolio
+    const earliestDataPoint =
+      await prisma.portfolio_historical_performance.findFirst({
+        where: {
+          portfolioId,
+        },
+        orderBy: {
+          date: "asc",
+        },
+      });
+
+    if (!earliestDataPoint) {
+      return {
+        data: [],
+        startDate: requestedStartDate.toISOString().split("T")[0],
+        endDate: endDate.toISOString().split("T")[0],
+        change: 0,
+        changePercent: 0,
+      };
+    }
+
+    // earliest available date
+    const startDate = new Date(
+      Math.min(requestedStartDate.getTime(), earliestDataPoint.date.getTime())
+    );
+
+    // Query the historical performance data with adjusted date range
+    const historicalData =
+      await prisma.portfolio_historical_performance.findMany({
+        where: {
+          portfolioId,
+          date: {
+            gte: startDate,
+            lte: endDate,
+          },
+        },
+        orderBy: {
+          date: "asc",
+        },
+      });
+
+    // Format the data for the TimeSeriesChart component
+    const chartData = historicalData.map((entry) => ({
+      timestamp: entry.date.getTime(),
+      price: Number(entry.totalValue),
+    }));
+
+    let change = 0;
+    let changePercent = 0;
+
+    if (chartData.length >= 2) {
+      const firstValue = chartData[0].price;
+      const lastValue = chartData[chartData.length - 1].price;
+
+      change = lastValue - firstValue;
+      changePercent = (change / firstValue) * 100;
+    }
+
+    return {
+      data: chartData,
+      startDate: startDate.toISOString().split("T")[0],
+      endDate: endDate.toISOString().split("T")[0],
+      change,
+      changePercent: parseFloat(changePercent.toFixed(2)),
+      // Add a flag to indicate if we're using a limited date range
+      isDateRangeLimited: startDate > requestedStartDate,
+      requestedTimeRange: timeRange,
+    };
+  }
+
+  private getStartDatefromTimeRange(timeRange: string): Date {
+    const now = new Date();
+    const startDate = new Date();
+
+    switch (timeRange) {
+      case "1D":
+        startDate.setDate(now.getDate() - 1);
+        break;
+      case "1W":
+        startDate.setDate(now.getDate() - 7);
+        break;
+      case "1M":
+        startDate.setMonth(now.getMonth() - 1);
+        break;
+      case "3M":
+        startDate.setMonth(now.getMonth() - 3);
+        break;
+      case "6M":
+        startDate.setMonth(now.getMonth() - 6);
+        break;
+      case "1Y":
+        startDate.setFullYear(now.getFullYear() - 1);
+        break;
+      case "5Y":
+        startDate.setFullYear(now.getFullYear() - 5);
+        break;
+      default:
+        startDate.setMonth(now.getMonth() - 1); // Default to 1 month
+    }
+
+    return startDate;
+  }
 }

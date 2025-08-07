@@ -253,7 +253,13 @@ export const TimeSeriesChart = ({ data, onPress }: TimeSeriesChartProps) => {
     };
   };
 
-  const dateRange = getDateRange();
+  // Use date range from chart data if available, otherwise calculate it
+  const dateRange = data.chartData?.startDate && data.chartData?.endDate
+    ? {
+        start: data.chartData.startDate,
+        end: data.chartData.endDate
+      }
+    : getDateRange();
 
   const getY = (price: number, minPrice: number, maxPrice: number) => {
     const availableHeight = CHART_HEIGHT - 2 * CHART_PADDING - LABEL_PADDING;

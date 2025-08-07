@@ -12,7 +12,7 @@ import { Text, Icon, Overlay } from "@rneui/themed";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { COLORS } from "../constants/colors";
 import { PortfolioCard } from "../components/PortfolioCard";
-import { TimeSeriesChart } from "../components/TimeSeriesChart";
+// TimeSeriesChart removed from dashboard to simplify loading
 import { AppHeader } from "../components/AppHeader";
 import { BottomNavSpacer } from "../components/BottomNavSpacer";
 import { useAuth } from "../contexts/AuthContext";
@@ -245,9 +245,20 @@ export const DashboardScreen = ({ navigation }: any) => {
     }
   };
 
-  const handleChartPress = () => {
+  const handleChartPress = async () => {
     if (contextPortfolio) {
-      navigation.navigate("Portfolio", { portfolioId: contextPortfolio.id });
+      try {
+        // Load chart data before navigating to portfolio screen
+        await loadChartData(contextPortfolio, selectedRange);
+        navigation.navigate("Portfolio", { 
+          portfolioId: contextPortfolio.id,
+          chartData: chartData // Pass the loaded chart data to the portfolio screen
+        });
+      } catch (error) {
+        console.error("Error preparing portfolio data:", error);
+        // Navigate anyway, the portfolio screen can handle loading its own data if needed
+        navigation.navigate("Portfolio", { portfolioId: contextPortfolio.id });
+      }
     }
   };
 
@@ -459,49 +470,58 @@ export const DashboardScreen = ({ navigation }: any) => {
     return "Low Risk Assets";
   };
 
-  // Add this new function to fetch historical data
+  // Function to fetch historical portfolio data from backend API
   const loadChartData = async (
     portfolio: Portfolio | null,
     timeRange: string
   ) => {
-    if (!portfolio || !portfolio.holdings || portfolio.holdings.length === 0) {
+    if (!portfolio) {
       setChartData(undefined);
       return;
     }
 
     try {
-      // For now, just use the first holding's data for the chart
-      const mainHolding = portfolio.holdings[0];
-      const symbol = mainHolding.symbol || mainHolding.assetSymbol;
-
-      if (!symbol) {
-        console.error("No symbol found for holding");
-        return;
-      }
-
-      const historicalData = await getAssetHistoricalData(symbol, timeRange);
-      if (historicalData) {
-        setChartData(historicalData);
+      console.log(`Loading chart data for portfolio ${portfolio.id} with timeRange ${timeRange}`);
+      
+      // Use the backend API to get portfolio chart data
+      const response = await api.portfolios.getChartData(portfolio.id, timeRange);
+      
+      if (response && response.data) {
+        // Format the data for the chart component
+        const formattedData = {
+          data: response.data,
+          startDate: response.startDate,
+          endDate: response.endDate,
+        };
+        
+        setChartData(formattedData);
+        
+        // Update portfolio change value if available in the response
+        if (response.change !== undefined) {
+          // Update the portfolio change value in context if needed
+          const updatedPortfolio = {
+            ...portfolio,
+            change: response.change,
+          };
+          setContextPortfolio(updatedPortfolio);
+        }
+      } else {
+        // If no holdings or no historical data available, fall back to an empty chart
+        setChartData(undefined);
       }
     } catch (error) {
-      console.error("Error loading chart data:", error);
+      console.error("Error loading portfolio chart data:", error);
+      setChartData(undefined);
     }
   };
 
-  // Add effect to load chart data when portfolio or time range changes
-  useEffect(() => {
-    loadChartData(contextPortfolio, selectedRange);
-  }, [contextPortfolio, selectedRange]);
+  // Chart data loading effect temporarily disabled to prevent infinite loop
+  // Will be implemented properly in a future update
+  // useEffect(() => {
+  //   loadChartData(contextPortfolio, selectedRange);
+  // }, [contextPortfolio, selectedRange]);
 
-  // Update the chart data object
-  const chartDataProps = {
-    value: contextPortfolio ? contextPortfolio.value : 0,
-    change: contextPortfolio ? contextPortfolio.change : 0,
-    timeRanges,
-    selectedRange,
-    onRangeSelect: setSelectedRange,
-    chartData: chartData, // Add the historical data
-  };
+  // Chart data props removed as we no longer show the chart on dashboard
 
   // No need to sync local state with context anymore since we're using context directly
 
@@ -572,17 +592,67 @@ export const DashboardScreen = ({ navigation }: any) => {
           />
         </View>
 
-        <TouchableOpacity
-          style={styles.section}
-          onPress={handleChartPress}
-          activeOpacity={0.8}
-        >
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>{contextPortfolio?.name}</Text>
-            <Text style={styles.tapHint}>Tap to view</Text>
-          </View>
-          <TimeSeriesChart data={chartDataProps} onPress={handleChartPress} />
-        </TouchableOpacity>
+        <View style={styles.cardContainer}>
+          <TouchableOpacity
+            style={[styles.portfolioInfoCard]}
+            onPress={handleChartPress}
+            activeOpacity={0.8}
+          >
+            <View style={styles.portfolioSummary}>
+              {/* Stats section moved to the top */}
+              <View style={styles.portfolioStats}>
+                <View style={styles.statItem}>
+                  <Text style={styles.statLabel}>Holdings</Text>
+                  <Text style={styles.statValue}>
+                    {contextPortfolio?.holdings?.length || 0}
+                  </Text>
+                </View>
+                
+                <View style={styles.statItem}>
+                  <Text style={styles.statLabel}>Starting</Text>
+                  <Text style={styles.statValue}>
+                    ${contextPortfolio?.startingBalance?.toFixed(2) || "0.00"}
+                  </Text>
+                </View>
+                
+                <View style={styles.statItem}>
+                  <Text style={styles.statLabel}>Created</Text>
+                  <Text style={styles.statValue}>
+                    {contextPortfolio?.createdAt 
+                      ? new Date(contextPortfolio.createdAt).toLocaleDateString() 
+                      : "N/A"}
+                  </Text>
+                </View>
+              </View>
+              
+              {/* Value section moved to the bottom and centered */}
+              <View style={styles.portfolioValueContainer}>
+                <Text style={styles.portfolioValueLabel}>Current Value</Text>
+                <Text style={styles.portfolioValue}>
+                  ${contextPortfolio?.value.toFixed(2) || "0.00"}
+                </Text>
+                
+                <View style={styles.changeContainer}>
+                  <Text 
+                    style={[
+                      styles.changeValue, 
+                      { color: (contextPortfolio?.change || 0) >= 0 ? "#4CAF50" : "#FF5252" }
+                    ]}
+                  >
+                    {(contextPortfolio?.change || 0) >= 0 ? "+" : ""}
+                    {contextPortfolio?.change?.toFixed(2) || "0.00"}%
+                  </Text>
+                </View>
+              </View>
+              
+              {/* Single view charts prompt */}
+              <View style={styles.viewChartPrompt}>
+                <Icon name="bar-chart-2" type="feather" color={COLORS.textPink} size={20} />
+                <Text style={styles.viewChartText}>View chart</Text>
+              </View>
+            </View>
+          </TouchableOpacity>
+        </View>
 
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
@@ -613,7 +683,7 @@ export const DashboardScreen = ({ navigation }: any) => {
             <TouchableOpacity
               onPress={flipCard}
               activeOpacity={0.9}
-              style={styles.cardContainer}
+              style={styles.riskCardContainer}
             >
               <Animated.View
                 style={[
@@ -736,6 +806,91 @@ export const DashboardScreen = ({ navigation }: any) => {
 };
 
 const styles = StyleSheet.create({
+  cardContainer: {
+    paddingHorizontal: 20,
+    paddingBottom: 10,
+  },
+  portfolioInfoCard: {
+    backgroundColor: "rgba(255, 255, 255, 0.08)",
+    borderRadius: 15,
+    marginBottom: 10,
+    width: "100%",
+  },
+  portfolioCardHeader: {
+    paddingVertical: 12,
+    alignItems: "center",
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255, 255, 255, 0.1)",
+  },
+  portfolioCardTitle: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: COLORS.textPink,
+    textAlign: "center",
+  },
+  portfolioSummary: {
+    padding: 18,
+  },
+  portfolioValueContainer: {
+    marginVertical: 20,
+    alignItems: "center",
+  },
+  portfolioValueLabel: {
+    fontSize: 14,
+    color: COLORS.textSecondary,
+    marginBottom: 5,
+    textAlign: "center",
+  },
+  portfolioValue: {
+    fontSize: 32,
+    fontWeight: "bold",
+    color: COLORS.textWhite,
+    textAlign: "center",
+  },
+  changeContainer: {
+    marginTop: 5,
+    alignItems: "center",
+  },
+  changeValue: {
+    fontSize: 18,
+    fontWeight: "600",
+    textAlign: "center",
+  },
+  portfolioStats: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    marginTop: 10,
+    marginBottom: 10,
+  },
+  statItem: {
+    alignItems: "center",
+    flex: 1,
+  },
+  statLabel: {
+    fontSize: 12,
+    color: COLORS.textSecondary,
+    marginBottom: 5,
+  },
+  statValue: {
+    fontSize: 16,
+    fontWeight: "600",
+    color: COLORS.textWhite,
+  },
+  viewChartPrompt: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    paddingVertical: 12,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(255, 255, 255, 0.1)",
+    marginTop: 5,
+  },
+  viewChartText: {
+    color: COLORS.textPink,
+    marginLeft: 8,
+    fontSize: 14,
+    fontWeight: "600",
+  },
   container: {
     flex: 1,
     backgroundColor: COLORS.deepPurpleBackground,
@@ -793,7 +948,7 @@ const styles = StyleSheet.create({
     borderRadius: 15,
     overflow: "hidden",
   },
-  cardContainer: {
+  riskCardContainer: {
     flex: 1,
     position: "relative",
   },
@@ -1016,3 +1171,4 @@ const styles = StyleSheet.create({
     color: COLORS.textPink,
   },
 });
+
