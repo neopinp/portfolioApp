@@ -1,10 +1,11 @@
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect, useRef } from "react";
 import { Portfolio } from "../types";
 import { storage, STORAGE_KEYS } from "../utils/storage";
 
 interface PortfolioContextType {
   selectedPortfolio: Portfolio | null;
   setSelectedPortfolio: (portfolio: Portfolio | null) => void;
+  getStoredPortfolioId: () => number | null;
 }
 
 const PortfolioContext = createContext<PortfolioContextType | undefined>(
@@ -18,49 +19,60 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({
 }) => {
   const [selectedPortfolio, setSelectedPortfolioState] =
     useState<Portfolio | null>(null);
+  const storedSelectedPortfolioIdRef = useRef<number | null>(null);
 
-  // Load the selected portfolio from storage on mount
+  // Load the selected portfolio ID from storage on mount
   useEffect(() => {
-    const loadSelectedPortfolio = async () => {
+    const loadSelectedPortfolioId = async () => {
       try {
-        const storedPortfolio = await storage.getItem<Portfolio>(
+        const storedId = await storage.getItem<number>(
           SELECTED_PORTFOLIO_KEY
         );
-        console.log("Loaded portfolio from storage:", storedPortfolio?.id, storedPortfolio?.name);
-        if (storedPortfolio) {
-          setSelectedPortfolioState(storedPortfolio);
-          console.log("Set portfolio from storage:", storedPortfolio.id);
+        console.log("Loaded portfolio ID from storage:", storedId);
+        if (storedId) {
+          storedSelectedPortfolioIdRef.current = storedId;
+          // Note: We don't set the portfolio state here
+          // The actual portfolio object will be loaded in DashboardScreen
         } else {
-          console.log("No portfolio found in storage");
+          console.log("No portfolio ID found in storage");
         }
       } catch (error) {
-        console.error("Error loading selected portfolio:", error);
+        console.error("Error loading selected portfolio ID:", error);
       }
     };
 
-    loadSelectedPortfolio();
+    loadSelectedPortfolioId();
   }, []);
 
-  // Save the selected portfolio to storage when it changes
+  // Save just the portfolio ID to storage when it changes
   const setSelectedPortfolio = async (portfolio: Portfolio | null) => {
     console.log("Setting selected portfolio:", portfolio?.id, portfolio?.name);
     setSelectedPortfolioState(portfolio);
     try {
       if (portfolio) {
-        await storage.setItem(SELECTED_PORTFOLIO_KEY, portfolio);
-        console.log("Saved portfolio to storage:", portfolio.id);
+        await storage.setItem(SELECTED_PORTFOLIO_KEY, portfolio.id);
+        storedSelectedPortfolioIdRef.current = portfolio.id;
+        console.log("Saved portfolio ID to storage:", portfolio.id);
       } else {
         await storage.removeItem(SELECTED_PORTFOLIO_KEY);
-        console.log("Removed portfolio from storage");
+        storedSelectedPortfolioIdRef.current = null;
+        console.log("Removed portfolio ID from storage");
       }
     } catch (error) {
-      console.error("Error saving selected portfolio:", error);
+      console.error("Error saving selected portfolio ID:", error);
     }
   };
 
+  // Expose the stored ID through context for use in other components
+  const getStoredPortfolioId = () => storedSelectedPortfolioIdRef.current;
+
   return (
     <PortfolioContext.Provider
-      value={{ selectedPortfolio, setSelectedPortfolio }}
+      value={{ 
+        selectedPortfolio, 
+        setSelectedPortfolio,
+        getStoredPortfolioId
+      }}
     >
       {children}
     </PortfolioContext.Provider>
@@ -73,4 +85,13 @@ export const usePortfolio = (): PortfolioContextType => {
     throw new Error("usePortfolio must be used within a PortfolioProvider");
   }
   return context;
+};
+
+// Export a way to access the stored ID directly
+export const useStoredPortfolioId = (): number | null => {
+  const context = useContext(PortfolioContext);
+  if (context === undefined) {
+    throw new Error("useStoredPortfolioId must be used within a PortfolioProvider");
+  }
+  return context.getStoredPortfolioId();
 };

@@ -1,13 +1,15 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import {
   View,
   ScrollView,
   StyleSheet,
   TouchableOpacity,
   ActivityIndicator,
+  RefreshControl,
 } from "react-native";
 import { Text } from "@rneui/themed";
 import { SafeAreaView } from "react-native-safe-area-context";
+import { useFocusEffect } from "@react-navigation/native";
 import { COLORS } from "../constants/colors";
 import { TimeSeriesChart } from "../components/TimeSeriesChart";
 import { HoldingItem } from "../components/HoldingItem";
@@ -26,18 +28,23 @@ export const PortfolioScreen = ({ route, navigation }: any) => {
   const { portfolioId: routePortfolioId } = route.params || {};
   const { selectedPortfolio: contextPortfolio } = usePortfolio();
 
-  console.log("PortfolioScreen - Context portfolio:", contextPortfolio?.id, contextPortfolio?.name);
-  console.log("PortfolioScreen - Route portfolio ID:", routePortfolioId);
-
   // Use the portfolioId from route params if available, otherwise use the one from context
   const portfolioId = routePortfolioId || contextPortfolio?.id;
-  console.log("PortfolioScreen - Using portfolio ID:", portfolioId);
+  
+  // Log portfolio information only once when component mounts or dependencies change
+  useEffect(() => {
+    console.log("PortfolioScreen - Context portfolio:", contextPortfolio?.id, contextPortfolio?.name);
+    console.log("PortfolioScreen - Route portfolio ID:", routePortfolioId);
+    console.log("PortfolioScreen - Using portfolio ID:", portfolioId);
+  }, [contextPortfolio?.id, contextPortfolio?.name, routePortfolioId, portfolioId]);
 
   const { user } = useAuth();
   const [timeRanges] = useState(["1D", "1W", "1M", "3M", "6M"]);
   const [selectedRange, setSelectedRange] = useState("1M");
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const isLoadingRef = useRef(false);
 
   // State for the portfolio data
   const [portfolio, setPortfolio] = useState<{
@@ -85,44 +92,73 @@ export const PortfolioScreen = ({ route, navigation }: any) => {
     loadChartData(portfolio.holdings, selectedRange);
   }, [portfolio.holdings, selectedRange]);
 
-  // Fetch portfolio data when the component mounts or portfolioId changes
-  useEffect(() => {
-    const fetchPortfolioData = async () => {
-      // If no portfolioId is available, show an error
-      if (!portfolioId) {
-        setError(
-          "No portfolio selected. Please select a portfolio from the Dashboard."
-        );
-        setLoading(false);
-        return;
-      }
+  // Define fetchPortfolioData function to be reused
+  const fetchPortfolioData = useCallback(async (isRefreshing = false) => {
+    // Prevent multiple simultaneous fetches
+    if (isLoadingRef.current && !isRefreshing) return;
+    
+    // If no portfolioId is available, show an error
+    if (!portfolioId) {
+      setError(
+        "No portfolio selected. Please select a portfolio from the Dashboard."
+      );
+      setLoading(false);
+      return;
+    }
 
-      try {
+    try {
+      isLoadingRef.current = true;
+      if (!isRefreshing) {
         setLoading(true);
-        setError(null);
-
-        // Fetch the portfolio data using the API
-        const response = await api.portfolios.getOne(portfolioId);
-
-        // Transform the response to match our expected format
-        const portfolioData = {
-          name: response.portfolio?.name || "Portfolio",
-          value: Number(response.portfolio?.startingBalance) || 0,
-          change: 0, // Default to 0 if not available
-          holdings: response.portfolio?.holdings || [],
-        };
-
-        setPortfolio(portfolioData);
-      } catch (err) {
-        console.error("Error fetching portfolio:", err);
-        setError("Failed to load portfolio data");
-      } finally {
-        setLoading(false);
       }
-    };
+      setError(null);
 
-    fetchPortfolioData();
+      // Fetch the portfolio data using the API
+      const response = await api.portfolios.getOne(portfolioId);
+
+      // Transform the response to match our expected format
+      const portfolioData = {
+        name: response.portfolio?.name || "Portfolio",
+        value: Number(response.portfolio?.startingBalance) || 0,
+        change: 0, // Default to 0 if not available
+        holdings: response.portfolio?.holdings || [],
+      };
+
+      setPortfolio(portfolioData);
+      console.log("Portfolio data refreshed with", portfolioData.holdings.length, "holdings");
+    } catch (err) {
+      console.error("Error fetching portfolio:", err);
+      setError("Failed to load portfolio data");
+    } finally {
+      setLoading(false);
+      isLoadingRef.current = false;
+    }
   }, [portfolioId]);
+
+  // Handle pull-to-refresh
+  const onRefresh = useCallback(async () => {
+    setRefreshing(true);
+    await fetchPortfolioData(true);
+    setRefreshing(false);
+  }, [fetchPortfolioData]);
+
+  // Fetch portfolio data when the component mounts
+  useEffect(() => {
+    fetchPortfolioData();
+  }, [fetchPortfolioData]);
+  
+  // Refresh data when the screen comes into focus
+  useFocusEffect(
+    useCallback(() => {
+      console.log("PortfolioScreen focused - refreshing data");
+      fetchPortfolioData();
+      
+      return () => {
+        // This runs when the screen goes out of focus
+        console.log("PortfolioScreen unfocused");
+      };
+    }, [fetchPortfolioData])
+  );
 
   // Update the chart data object
   const chartDataProps = {
@@ -164,7 +200,16 @@ export const PortfolioScreen = ({ route, navigation }: any) => {
   return (
     <SafeAreaView style={styles.container}>
       <AppHeader title={portfolio.name} username={user?.username || "User"} />
-      <ScrollView style={styles.scrollView}>
+      <ScrollView 
+        style={styles.scrollView}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[COLORS.textPink]}
+          />
+        }
+      >
         <View style={styles.section}>
           <TimeSeriesChart data={chartDataProps} />
         </View>

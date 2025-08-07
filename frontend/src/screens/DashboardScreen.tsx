@@ -19,7 +19,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { api } from "../services/api";
 import { storage, STORAGE_KEYS } from "../utils/storage";
 import { Portfolio, OnboardingData, Asset } from "../types";
-import { usePortfolio } from "../contexts/PortfolioContext";
+import { usePortfolio, useStoredPortfolioId } from "../contexts/PortfolioContext";
 import { getAssetHistoricalData } from "../services/financialApi";
 import { getAssetDetails } from "../services/financialApi";
 
@@ -31,7 +31,9 @@ export const DashboardScreen = ({ navigation }: any) => {
   const {
     selectedPortfolio: contextPortfolio,
     setSelectedPortfolio: setContextPortfolio,
+    getStoredPortfolioId,
   } = usePortfolio();
+  const storedSelectedPortfolioIdRef = useRef<number | null>(null);
   const [portfolios, setPortfolios] = useState<Portfolio[]>([]);
   // Using context directly instead of local state
   const [isLoading, setIsLoading] = useState(true);
@@ -51,6 +53,29 @@ export const DashboardScreen = ({ navigation }: any) => {
   const [flipAnimation] = useState(new Animated.Value(0));
   const [heightAnimation] = useState(new Animated.Value(180));
   const [chartData, setChartData] = useState<any | undefined>();
+
+  // Load the stored portfolio ID directly from storage on focus
+  useEffect(() => {
+    const loadStoredIdFromStorage = async () => {
+      try {
+        const storedId = await storage.getItem<number>(STORAGE_KEYS.SELECTED_PORTFOLIO);
+        storedSelectedPortfolioIdRef.current = storedId;
+        console.log("Loaded stored portfolio ID directly from storage:", storedId);
+      } catch (error) {
+        console.error("Error loading portfolio ID from storage:", error);
+      }
+    };
+    
+    // Load on mount
+    loadStoredIdFromStorage();
+    
+    // Also add a focus listener to reload when returning to this screen
+    const unsubscribe = navigation.addListener('focus', () => {
+      loadStoredIdFromStorage();
+    });
+    
+    return unsubscribe;
+  }, [navigation]);
 
   // Initial load of portfolios
   useEffect(() => {
@@ -140,6 +165,18 @@ export const DashboardScreen = ({ navigation }: any) => {
       isLoadingRef.current = true; // loading in-progress
       setIsLoading(true);
       setError(null);
+      
+      // First, ensure we have the latest stored ID from storage
+      try {
+        const latestStoredId = await storage.getItem<number>(STORAGE_KEYS.SELECTED_PORTFOLIO);
+        if (latestStoredId !== storedSelectedPortfolioIdRef.current) {
+          console.log("Updating stored portfolio ID from storage:", latestStoredId);
+          storedSelectedPortfolioIdRef.current = latestStoredId;
+        }
+      } catch (error) {
+        console.error("Error refreshing stored portfolio ID:", error);
+      }
+      
       const response = await api.portfolios.getAll();
 
       if (response.length === 0 && !hasCreatedInitialPortfolio) {
@@ -161,7 +198,20 @@ export const DashboardScreen = ({ navigation }: any) => {
 
         setPortfolios(transformedPortfolios);
         
-        // existing portfolio context 
+        // Check for stored portfolio ID (using the latest value)
+        const storedPortfolioId = storedSelectedPortfolioIdRef.current;
+        if (storedPortfolioId) {
+          const match = transformedPortfolios.find((p: Portfolio) => p.id === storedPortfolioId);
+          if (match) {
+            console.log("Restoring stored selected portfolio:", match.id, match.name);
+            setContextPortfolio(match);
+            return;
+          } else {
+            console.log("Stored portfolio ID not found in current portfolios:", storedPortfolioId);
+          }
+        }
+        
+        // If there's a currently selected portfolio in context, try to maintain it
         if (contextPortfolio) {
           const existingPortfolio = transformedPortfolios.find((p: Portfolio) => p.id === contextPortfolio.id);
           if (existingPortfolio) {
