@@ -273,7 +273,7 @@ export const getMultipleAssetHistoricalDetails = async (
 };
 
 // Helper function to get time series parameters
-const getTimeSeriesParams = (
+export const getTimeSeriesParams = (
   timeRange: string
 ): { interval: string; outputsize: number; startDate?: string } => {
   const now = new Date();

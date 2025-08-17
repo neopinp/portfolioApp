@@ -19,8 +19,9 @@ import { useAuth } from "../contexts/AuthContext";
 import { api } from "../services/api";
 import { storage, STORAGE_KEYS } from "../utils/storage";
 import { Portfolio, OnboardingData, Asset } from "../types";
-import { usePortfolio, useStoredPortfolioId } from "../contexts/PortfolioContext";
-import { getAssetHistoricalData } from "../services/financialApi";
+import {
+  usePortfolio,
+} from "../contexts/PortfolioContext";
 import { getAssetDetails } from "../services/financialApi";
 
 // Use a union type for items that could be either a portfolio or a "new portfolio" button
@@ -38,8 +39,6 @@ export const DashboardScreen = ({ navigation }: any) => {
   // Using context directly instead of local state
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [timeRanges] = useState(["1D", "1W", "1M", "3M", "6M"]);
-  const [selectedRange, setSelectedRange] = useState("1M");
 
   // Track if we've already created an initial portfolio in this session
   const [hasCreatedInitialPortfolio, setHasCreatedInitialPortfolio] =
@@ -52,28 +51,32 @@ export const DashboardScreen = ({ navigation }: any) => {
   const [showTooltip, setShowTooltip] = useState(false);
   const [flipAnimation] = useState(new Animated.Value(0));
   const [heightAnimation] = useState(new Animated.Value(180));
-  const [chartData, setChartData] = useState<any | undefined>();
 
   // Load the stored portfolio ID directly from storage on focus
   useEffect(() => {
     const loadStoredIdFromStorage = async () => {
       try {
-        const storedId = await storage.getItem<number>(STORAGE_KEYS.SELECTED_PORTFOLIO);
+        const storedId = await storage.getItem<number>(
+          STORAGE_KEYS.SELECTED_PORTFOLIO
+        );
         storedSelectedPortfolioIdRef.current = storedId;
-        console.log("Loaded stored portfolio ID directly from storage:", storedId);
+        console.log(
+          "Loaded stored portfolio ID directly from storage:",
+          storedId
+        );
       } catch (error) {
         console.error("Error loading portfolio ID from storage:", error);
       }
     };
-    
+
     // Load on mount
     loadStoredIdFromStorage();
-    
+
     // Also add a focus listener to reload when returning to this screen
-    const unsubscribe = navigation.addListener('focus', () => {
+    const unsubscribe = navigation.addListener("focus", () => {
       loadStoredIdFromStorage();
     });
-    
+
     return unsubscribe;
   }, [navigation]);
 
@@ -142,11 +145,17 @@ export const DashboardScreen = ({ navigation }: any) => {
         holdings: newPortfolio.holdings || [],
         startingBalance: Number(newPortfolio.startingBalance) || 0,
         userId: newPortfolio.userId,
-        createdAt: newPortfolio.createdAt ? new Date(newPortfolio.createdAt) : undefined,
+        createdAt: newPortfolio.createdAt
+          ? new Date(newPortfolio.createdAt)
+          : undefined,
       };
 
       setPortfolios([transformedPortfolio]);
-      console.log("Setting initial portfolio in context:", transformedPortfolio.id, transformedPortfolio.name);
+      console.log(
+        "Setting initial portfolio in context:",
+        transformedPortfolio.id,
+        transformedPortfolio.name
+      );
       setContextPortfolio(transformedPortfolio); // Set in context
       setHasCreatedInitialPortfolio(true);
     } catch (err) {
@@ -165,18 +174,23 @@ export const DashboardScreen = ({ navigation }: any) => {
       isLoadingRef.current = true; // loading in-progress
       setIsLoading(true);
       setError(null);
-      
+
       // First, ensure we have the latest stored ID from storage
       try {
-        const latestStoredId = await storage.getItem<number>(STORAGE_KEYS.SELECTED_PORTFOLIO);
+        const latestStoredId = await storage.getItem<number>(
+          STORAGE_KEYS.SELECTED_PORTFOLIO
+        );
         if (latestStoredId !== storedSelectedPortfolioIdRef.current) {
-          console.log("Updating stored portfolio ID from storage:", latestStoredId);
+          console.log(
+            "Updating stored portfolio ID from storage:",
+            latestStoredId
+          );
           storedSelectedPortfolioIdRef.current = latestStoredId;
         }
       } catch (error) {
         console.error("Error refreshing stored portfolio ID:", error);
       }
-      
+
       const response = await api.portfolios.getAll();
 
       if (response.length === 0 && !hasCreatedInitialPortfolio) {
@@ -193,37 +207,58 @@ export const DashboardScreen = ({ navigation }: any) => {
           holdings: portfolio.holdings || [],
           startingBalance: Number(portfolio.startingBalance) || 0,
           userId: portfolio.userId,
-          createdAt: portfolio.createdAt ? new Date(portfolio.createdAt) : undefined,
+          createdAt: portfolio.createdAt
+            ? new Date(portfolio.createdAt)
+            : undefined,
         }));
 
         setPortfolios(transformedPortfolios);
-        
+
         // Check for stored portfolio ID (using the latest value)
         const storedPortfolioId = storedSelectedPortfolioIdRef.current;
         if (storedPortfolioId) {
-          const match = transformedPortfolios.find((p: Portfolio) => p.id === storedPortfolioId);
+          const match = transformedPortfolios.find(
+            (p: Portfolio) => p.id === storedPortfolioId
+          );
           if (match) {
-            console.log("Restoring stored selected portfolio:", match.id, match.name);
+            console.log(
+              "Restoring stored selected portfolio:",
+              match.id,
+              match.name
+            );
             setContextPortfolio(match);
             return;
           } else {
-            console.log("Stored portfolio ID not found in current portfolios:", storedPortfolioId);
+            console.log(
+              "Stored portfolio ID not found in current portfolios:",
+              storedPortfolioId
+            );
           }
         }
-        
+
         // If there's a currently selected portfolio in context, try to maintain it
         if (contextPortfolio) {
-          const existingPortfolio = transformedPortfolios.find((p: Portfolio) => p.id === contextPortfolio.id);
+          const existingPortfolio = transformedPortfolios.find(
+            (p: Portfolio) => p.id === contextPortfolio.id
+          );
           if (existingPortfolio) {
-            console.log("Maintaining existing selected portfolio:", existingPortfolio.id, existingPortfolio.name);
+            console.log(
+              "Maintaining existing selected portfolio:",
+              existingPortfolio.id,
+              existingPortfolio.name
+            );
             setContextPortfolio(existingPortfolio);
             return;
           }
         }
-        
+
         // Otherwise, set first portfolio as selected in context
         if (transformedPortfolios.length > 0) {
-          console.log("Setting first portfolio in context:", transformedPortfolios[0].id, transformedPortfolios[0].name);
+          console.log(
+            "Setting first portfolio in context:",
+            transformedPortfolios[0].id,
+            transformedPortfolios[0].name
+          );
           setContextPortfolio(transformedPortfolios[0]);
         } else {
           console.log("No portfolios to set in context");
@@ -241,31 +276,21 @@ export const DashboardScreen = ({ navigation }: any) => {
   const handlePortfolioPress = (portfolioId: number) => {
     const portfolio = portfolios.find((p) => p.id === portfolioId);
     if (portfolio) {
-      setContextPortfolio(portfolio); // Set in context only
+      setContextPortfolio(portfolio);
     }
   };
 
   const handleChartPress = async () => {
     if (contextPortfolio) {
-      try {
-        // Load chart data before navigating to portfolio screen
-        await loadChartData(contextPortfolio, selectedRange);
-        navigation.navigate("Portfolio", { 
-          portfolioId: contextPortfolio.id,
-          chartData: chartData // Pass the loaded chart data to the portfolio screen
-        });
-      } catch (error) {
-        console.error("Error preparing portfolio data:", error);
-        // Navigate anyway, the portfolio screen can handle loading its own data if needed
-        navigation.navigate("Portfolio", { portfolioId: contextPortfolio.id });
-      }
+      navigation.navigate("Portfolio", {
+        portfolioId: contextPortfolio.id,
+      });
     }
   };
 
   const handleCreatePortfolio = () => {
     navigation.navigate("CreatePortfolio");
   };
-
 
   const flipCard = () => {
     setShowRiskDetails(!showRiskDetails);
@@ -368,29 +393,42 @@ export const DashboardScreen = ({ navigation }: any) => {
       if (assetDetails.sector) {
         const sector = assetDetails.sector.toLowerCase();
         // Higher risk sectors
-        if (sector.includes('technology') || sector.includes('crypto') || sector.includes('biotech')) {
+        if (
+          sector.includes("technology") ||
+          sector.includes("crypto") ||
+          sector.includes("biotech")
+        ) {
           riskScore += 3;
         }
         // Medium-high risk sectors
-        else if (sector.includes('consumer cyclical') || sector.includes('communication')) {
+        else if (
+          sector.includes("consumer cyclical") ||
+          sector.includes("communication")
+        ) {
           riskScore += 2;
         }
         // Medium risk sectors
-        else if (sector.includes('industrial') || sector.includes('energy')) {
+        else if (sector.includes("industrial") || sector.includes("energy")) {
           riskScore += 1;
         }
         // Low-medium risk sectors
-        else if (sector.includes('healthcare') || sector.includes('materials')) {
+        else if (
+          sector.includes("healthcare") ||
+          sector.includes("materials")
+        ) {
           riskScore += 0;
         }
         // Lower risk sectors
-        else if (sector.includes('utilities') || sector.includes('consumer defensive')) {
+        else if (
+          sector.includes("utilities") ||
+          sector.includes("consumer defensive")
+        ) {
           riskScore -= 1;
         }
       }
 
       // Beta-based risk (market sensitivity)
-      if (assetDetails.beta && assetDetails.beta !== 'N/A') {
+      if (assetDetails.beta && assetDetails.beta !== "N/A") {
         const beta = parseFloat(assetDetails.beta);
         if (!isNaN(beta)) {
           if (beta > 1.5) riskScore += 2;
@@ -400,10 +438,11 @@ export const DashboardScreen = ({ navigation }: any) => {
       }
 
       // Market cap based risk (if available)
-      if (assetDetails.marketCap && assetDetails.marketCap !== 'N/A') {
+      if (assetDetails.marketCap && assetDetails.marketCap !== "N/A") {
         const mcap = assetDetails.marketCap.toLowerCase();
-        if (mcap.includes('t')) riskScore -= 1; // Trillion dollar companies are more stable
-        else if (mcap.includes('m')) riskScore += 1; // Small caps are riskier
+        if (mcap.includes("t"))
+          riskScore -= 1; // Trillion dollar companies are more stable
+        else if (mcap.includes("m")) riskScore += 1; // Small caps are riskier
       }
 
       // Price volatility risk
@@ -416,13 +455,15 @@ export const DashboardScreen = ({ navigation }: any) => {
       // Ensure risk score stays within 1-10 range
       return Math.max(1, Math.min(10, Math.round(riskScore)));
     } catch (error) {
-      console.error('Error calculating risk rating:', error);
+      console.error("Error calculating risk rating:", error);
       return 5; // Default risk on error
     }
   };
 
   // Calculate average risk rating from holdings
-  const calculateAverageRiskRating = async (portfolio?: Portfolio | null): Promise<number> => {
+  const calculateAverageRiskRating = async (
+    portfolio?: Portfolio | null
+  ): Promise<number> => {
     if (!portfolio || !portfolio.holdings || portfolio.holdings.length === 0) {
       return 0;
     }
@@ -433,7 +474,8 @@ export const DashboardScreen = ({ navigation }: any) => {
 
       // Calculate risk ratings for all holdings in parallel
       const holdingPromises = portfolio.holdings.map(async (holding) => {
-        const holdingValue = Number(holding.amount) * Number(holding.boughtAtPrice);
+        const holdingValue =
+          Number(holding.amount) * Number(holding.boughtAtPrice);
         const symbol = holding.symbol || holding.assetSymbol;
         const riskRating = await calculateAssetRiskRating(symbol);
         return { value: holdingValue, risk: riskRating };
@@ -446,9 +488,11 @@ export const DashboardScreen = ({ navigation }: any) => {
         weightedRiskSum += value * risk;
       });
 
-      return totalValue > 0 ? Math.round((weightedRiskSum / totalValue) * 10) / 10 : 0;
+      return totalValue > 0
+        ? Math.round((weightedRiskSum / totalValue) * 10) / 10
+        : 0;
     } catch (error) {
-      console.error('Error calculating average risk:', error);
+      console.error("Error calculating average risk:", error);
       return 0;
     }
   };
@@ -456,9 +500,9 @@ export const DashboardScreen = ({ navigation }: any) => {
   // Helper function for risk color
   const getRiskColor = (score: number) => {
     if (score === 0) return "#808080"; // Gray for no holdings
-    if (score > 7) return "#FF5252";    // High risk assets
-    if (score > 4) return "#FFC107";    // Medium risk assets
-    return "#4CAF50";                   // Low risk assets
+    if (score > 7) return "#FF5252"; // High risk assets
+    if (score > 4) return "#FFC107"; // Medium risk assets
+    return "#4CAF50"; // Low risk assets
   };
 
   // Helper function for risk description
@@ -470,66 +514,9 @@ export const DashboardScreen = ({ navigation }: any) => {
     return "Low Risk Assets";
   };
 
-  // Function to fetch historical portfolio data from backend API
-  const loadChartData = async (
-    portfolio: Portfolio | null,
-    timeRange: string
-  ) => {
-    if (!portfolio) {
-      setChartData(undefined);
-      return;
-    }
-
-    try {
-      console.log(`Loading chart data for portfolio ${portfolio.id} with timeRange ${timeRange}`);
-      
-      // Use the backend API to get portfolio chart data
-      const response = await api.portfolios.getChartData(portfolio.id, timeRange);
-      
-      if (response && response.data) {
-        // Format the data for the chart component
-        const formattedData = {
-          data: response.data,
-          startDate: response.startDate,
-          endDate: response.endDate,
-        };
-        
-        setChartData(formattedData);
-        
-        // Update portfolio change value if available in the response
-        if (response.change !== undefined) {
-          // Update the portfolio change value in context if needed
-          const updatedPortfolio = {
-            ...portfolio,
-            change: response.change,
-          };
-          setContextPortfolio(updatedPortfolio);
-        }
-      } else {
-        // If no holdings or no historical data available, fall back to an empty chart
-        setChartData(undefined);
-      }
-    } catch (error) {
-      console.error("Error loading portfolio chart data:", error);
-      setChartData(undefined);
-    }
-  };
-
-  // Chart data loading effect temporarily disabled to prevent infinite loop
-  // Will be implemented properly in a future update
-  // useEffect(() => {
-  //   loadChartData(contextPortfolio, selectedRange);
-  // }, [contextPortfolio, selectedRange]);
-
-  // Chart data props removed as we no longer show the chart on dashboard
-
-  // No need to sync local state with context anymore since we're using context directly
-
-  // In the render section, we need to handle the async nature of risk calculations
   const [riskRatings, setRiskRatings] = useState<Record<string, number>>({});
   const [averageRisk, setAverageRisk] = useState<number>(0);
 
-  // Effect to load risk ratings when portfolio changes
   useEffect(() => {
     const loadRiskRatings = async () => {
       if (!contextPortfolio || !contextPortfolio.holdings) return;
@@ -607,36 +594,43 @@ export const DashboardScreen = ({ navigation }: any) => {
                     {contextPortfolio?.holdings?.length || 0}
                   </Text>
                 </View>
-                
+
                 <View style={styles.statItem}>
                   <Text style={styles.statLabel}>Starting</Text>
                   <Text style={styles.statValue}>
                     ${contextPortfolio?.startingBalance?.toFixed(2) || "0.00"}
                   </Text>
                 </View>
-                
+
                 <View style={styles.statItem}>
                   <Text style={styles.statLabel}>Created</Text>
                   <Text style={styles.statValue}>
-                    {contextPortfolio?.createdAt 
-                      ? new Date(contextPortfolio.createdAt).toLocaleDateString() 
+                    {contextPortfolio?.createdAt
+                      ? new Date(
+                          contextPortfolio.createdAt
+                        ).toLocaleDateString()
                       : "N/A"}
                   </Text>
                 </View>
               </View>
-              
+
               {/* Value section moved to the bottom and centered */}
               <View style={styles.portfolioValueContainer}>
                 <Text style={styles.portfolioValueLabel}>Current Value</Text>
                 <Text style={styles.portfolioValue}>
                   ${contextPortfolio?.value.toFixed(2) || "0.00"}
                 </Text>
-                
+
                 <View style={styles.changeContainer}>
-                  <Text 
+                  <Text
                     style={[
-                      styles.changeValue, 
-                      { color: (contextPortfolio?.change || 0) >= 0 ? "#4CAF50" : "#FF5252" }
+                      styles.changeValue,
+                      {
+                        color:
+                          (contextPortfolio?.change || 0) >= 0
+                            ? "#4CAF50"
+                            : "#FF5252",
+                      },
                     ]}
                   >
                     {(contextPortfolio?.change || 0) >= 0 ? "+" : ""}
@@ -644,10 +638,15 @@ export const DashboardScreen = ({ navigation }: any) => {
                   </Text>
                 </View>
               </View>
-              
+
               {/* Single view charts prompt */}
               <View style={styles.viewChartPrompt}>
-                <Icon name="bar-chart-2" type="feather" color={COLORS.textPink} size={20} />
+                <Icon
+                  name="bar-chart-2"
+                  type="feather"
+                  color={COLORS.textPink}
+                  size={20}
+                />
                 <Text style={styles.viewChartText}>View chart</Text>
               </View>
             </View>
@@ -696,7 +695,7 @@ export const DashboardScreen = ({ navigation }: any) => {
                 <Text
                   style={[
                     styles.riskScore,
-                    { color: getRiskColor(averageRisk) }
+                    { color: getRiskColor(averageRisk) },
                   ]}
                 >
                   {averageRisk}
@@ -723,10 +722,10 @@ export const DashboardScreen = ({ navigation }: any) => {
                       return (
                         <View key={holding.id} style={styles.riskAssetItem}>
                           <View style={styles.riskAssetInfo}>
-                            <Text style={styles.riskAssetSymbol}>
-                              {symbol}
+                            <Text style={styles.riskAssetSymbol}>{symbol}</Text>
+                            <Text style={styles.riskAssetName}>
+                              {holding.fullName || ""}
                             </Text>
-                            <Text style={styles.riskAssetName}>{holding.fullName || ''}</Text>
                           </View>
                           <View
                             style={[
@@ -742,7 +741,7 @@ export const DashboardScreen = ({ navigation }: any) => {
                                 { color: getRiskColor(riskRating) },
                               ]}
                             >
-                              {riskRating || 'N/A'}
+                              {riskRating || "N/A"}
                             </Text>
                           </View>
                         </View>
@@ -1171,4 +1170,3 @@ const styles = StyleSheet.create({
     color: COLORS.textPink,
   },
 });
-

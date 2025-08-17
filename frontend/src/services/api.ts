@@ -120,7 +120,7 @@ export const api = {
       }),
     getChartData: (
       portfolioId: number,
-      timeRange: string = "1M"
+      timeRange: string = "1Y" // how should I default to fetching max data?
     ) =>
       apiRequest(`portfolios/${portfolioId}/chart?timeRange=${timeRange}`),
     

@@ -17,6 +17,17 @@ export interface CreatePortfolioData {
   riskScore: number;
 }
 
+export interface HistoricalDataPoint {
+  timestamp: number;
+  price: number;
+}
+
+export interface PortfolioHistoryData {
+  data: HistoricalDataPoint[];
+  startDate: string;
+  endDate: string;
+}
+
 export interface Holding {
   id: number;
   portfolioId: number;

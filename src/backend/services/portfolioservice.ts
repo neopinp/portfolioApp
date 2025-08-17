@@ -306,7 +306,7 @@ export class PortfolioService {
     };
   }
 
-  // retrieve and transform the chart data
+  // fetch and transform the chart data
   async getPortfolioChartData(
     userId: number,
     portfolioId: number,

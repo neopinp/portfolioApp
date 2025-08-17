@@ -17,11 +17,11 @@ import { AppHeader } from "../components/AppHeader";
 import { Icon } from "@rneui/themed";
 import { useAuth } from "../contexts/AuthContext";
 import { usePortfolio } from "../contexts/PortfolioContext";
-import { Holding, Portfolio as PortfolioType } from "../types";
+import { HistoricalDataPoint, Holding, PortfolioHistoryData } from "../types";
 import { api } from "../services/api";
 import { BottomNavSpacer } from "../components/BottomNavSpacer";
-import { getAssetHistoricalData } from "../services/financialApi";
 import { ChartData } from "../types";
+import { getTimeSeriesParams } from "services/financialApi";
 
 export const PortfolioScreen = ({ route, navigation }: any) => {
   // Get portfolioId from route params or use the selected portfolio from context
@@ -30,20 +30,33 @@ export const PortfolioScreen = ({ route, navigation }: any) => {
 
   // Use the portfolioId from route params if available, otherwise use the one from context
   const portfolioId = routePortfolioId || contextPortfolio?.id;
-  
+
   // Log portfolio information only once when component mounts or dependencies change
   useEffect(() => {
-    console.log("PortfolioScreen - Context portfolio:", contextPortfolio?.id, contextPortfolio?.name);
+    console.log(
+      "PortfolioScreen - Context portfolio:",
+      contextPortfolio?.id,
+      contextPortfolio?.name
+    );
     console.log("PortfolioScreen - Route portfolio ID:", routePortfolioId);
     console.log("PortfolioScreen - Using portfolio ID:", portfolioId);
-  }, [contextPortfolio?.id, contextPortfolio?.name, routePortfolioId, portfolioId]);
+  }, [
+    contextPortfolio?.id,
+    contextPortfolio?.name,
+    routePortfolioId,
+    portfolioId,
+  ]);
 
   const { user } = useAuth();
-  const [timeRanges] = useState(["1D", "1W", "1M", "3M", "6M"]);
-  const [selectedRange, setSelectedRange] = useState("1M");
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [timeRanges] = useState(["1D", "1W", "1M", "3M", "6M", "1Y", "5Y"]);
+  const [selectedRange, setSelectedRange] = useState("1Y");
+  // chart states
+  const [chartData, setChartData] = useState<ChartData | undefined>(); // filtered
+
+  const [chartLoading, setChartLoading] = useState(false);
   const isLoadingRef = useRef(false);
 
   // State for the portfolio data
@@ -59,81 +72,88 @@ export const PortfolioScreen = ({ route, navigation }: any) => {
     holdings: [],
   });
 
-  const [chartData, setChartData] = useState<ChartData | undefined>();
 
-  // Add function to fetch historical data
-  const loadChartData = async (holdings: Holding[], timeRange: string) => {
-    if (!holdings || holdings.length === 0) {
-      setChartData(undefined);
-      return;
-    }
+  const handleTimeRangeSelect = useCallback(
+    async (range: string) => {
+      if (!portfolioId) return;
+      try {
+        setChartLoading(true);
+        setSelectedRange(range);
 
-    try {
-      // For now, just use the first holding's data for the chart
-      const mainHolding = holdings[0];
-      const symbol = mainHolding.symbol || mainHolding.assetSymbol;
-      
-      if (!symbol) {
-        console.error("No symbol found for holding");
+        const res = await api.portfolios.getChartData(portfolioId, range);
+        console.log("Chart Data Response:", JSON.stringify(res, null, 2));
+
+        // The backend already returns the correct format, just validate it
+        if (res?.data && Array.isArray(res.data)) {
+          setChartData(res);
+
+          // Update portfolio value and change from the latest data point
+          if (res.data.length > 0) {
+            const lastPoint = res.data[res.data.length - 1];
+            setPortfolio((p) => ({
+              ...p,
+              value: lastPoint.price,
+              change: res.changePercent || 0,
+            }));
+          }
+        }
+      } catch (e) {
+        console.error("Error loading chart data - handleTimeRangeSelect", e);
+      } finally {
+        setChartLoading(false);
+      }
+    },
+    [portfolioId]
+  );
+
+  const fetchPortfolioData = useCallback(
+    async (isRefreshing = false) => {
+      // Prevent multiple simultaneous fetches
+      if (isLoadingRef.current && !isRefreshing) return;
+
+      // If no portfolioId is available, show an error
+      if (!portfolioId) {
+        setError(
+          "No portfolio selected. Please select a portfolio from the Dashboard."
+        );
+        setLoading(false);
         return;
       }
 
-      const historicalData = await getAssetHistoricalData(symbol, timeRange);
-      if (historicalData) {
-        setChartData(historicalData);
+      try {
+        isLoadingRef.current = true;
+        if (!isRefreshing) {
+          setLoading(true);
+        }
+        setError(null);
+
+        // Fetch the portfolio data using the API
+        const response = await api.portfolios.getOne(portfolioId);
+
+        // Transform the response to match our expected format
+        const portfolioData = {
+          name: response.portfolio?.name || "Portfolio",
+          holdings: response.portfolio?.holdings || [],
+          value: 0,
+          change: 0,
+        };
+
+        setPortfolio(portfolioData);
+        console.log(
+          "Portfolio data refreshed with",
+          portfolioData.holdings.length,
+          "holdings"
+        );
+      } catch (err) {
+        console.error("Error fetching portfolio:", err);
+        setError("Failed to load portfolio data");
+      } finally {
+        setLoading(false);
+        isLoadingRef.current = false;
       }
-    } catch (error) {
-      console.error("Error loading chart data:", error);
-    }
-  };
-
-  // Add effect to load chart data when holdings or time range changes
-  useEffect(() => {
-    loadChartData(portfolio.holdings, selectedRange);
-  }, [portfolio.holdings, selectedRange]);
-
-  // Define fetchPortfolioData function to be reused
-  const fetchPortfolioData = useCallback(async (isRefreshing = false) => {
-    // Prevent multiple simultaneous fetches
-    if (isLoadingRef.current && !isRefreshing) return;
-    
-    // If no portfolioId is available, show an error
-    if (!portfolioId) {
-      setError(
-        "No portfolio selected. Please select a portfolio from the Dashboard."
-      );
-      setLoading(false);
-      return;
-    }
-
-    try {
-      isLoadingRef.current = true;
-      if (!isRefreshing) {
-        setLoading(true);
-      }
-      setError(null);
-
-      // Fetch the portfolio data using the API
-      const response = await api.portfolios.getOne(portfolioId);
-
-      // Transform the response to match our expected format
-      const portfolioData = {
-        name: response.portfolio?.name || "Portfolio",
-        value: Number(response.portfolio?.startingBalance) || 0,
-        change: 0, // Default to 0 if not available
-        holdings: response.portfolio?.holdings || [],
-      };
-
-      setPortfolio(portfolioData);
-      console.log("Portfolio data refreshed with", portfolioData.holdings.length, "holdings");
-    } catch (err) {
-      console.error("Error fetching portfolio:", err);
-      setError("Failed to load portfolio data");
-    } finally {
-      setLoading(false);
-      isLoadingRef.current = false;
-    }
-  }, [portfolioId]);
+    },
+    [portfolioId]
+  );
 
   // Handle pull-to-refresh
   const onRefresh = useCallback(async () => {
@@ -142,17 +162,17 @@ export const PortfolioScreen = ({ route, navigation }: any) => {
     setRefreshing(false);
   }, [fetchPortfolioData]);
 
-  // Fetch portfolio data when the component mounts
+  // Inital portfolio data load
   useEffect(() => {
     fetchPortfolioData();
   }, [fetchPortfolioData]);
-  
+
   // Refresh data when the screen comes into focus
   useFocusEffect(
     useCallback(() => {
       console.log("PortfolioScreen focused - refreshing data");
       fetchPortfolioData();
-      
+
       return () => {
         // This runs when the screen goes out of focus
         console.log("PortfolioScreen unfocused");
@@ -160,14 +180,14 @@ export const PortfolioScreen = ({ route, navigation }: any) => {
     }, [fetchPortfolioData])
   );
 
-  // Update the chart data object
+  // Update the chart data object with validation
   const chartDataProps = {
     value: portfolio.value,
     change: portfolio.change,
     timeRanges,
     selectedRange,
-    onRangeSelect: setSelectedRange,
-    chartData: chartData, // Add the historical data
+    onRangeSelect: handleTimeRangeSelect,
+    chartData, // Pass the data directly without transformation
   };
 
   const handleAddHolding = () => {
@@ -200,7 +220,7 @@ export const PortfolioScreen = ({ route, navigation }: any) => {
   return (
     <SafeAreaView style={styles.container}>
       <AppHeader title={portfolio.name} username={user?.username || "User"} />
-      <ScrollView 
+      <ScrollView
         style={styles.scrollView}
         refreshControl={
           <RefreshControl
