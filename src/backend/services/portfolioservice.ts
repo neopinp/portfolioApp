@@ -3,6 +3,7 @@ import { prisma } from "../config/db";
 import { NotFoundError } from "../utils/errors";
 import { FinancialApiService } from "./financialApi";
 
+
 export class PortfolioService {
   constructor(private readonly financialApiService: FinancialApiService) {}
 
@@ -122,6 +123,7 @@ export class PortfolioService {
       });
     }
   }
+  // user pull-to-refresh 
   async updatePortfolioCurrentValue(
     userId: number,
     portfolioId: number,
@@ -251,8 +253,32 @@ export class PortfolioService {
         price = dataPoint.price;
       }
 
-      const assetValue = price * assetData.shares;
       const existingEntry = existingEntriesMap.get(dataPoint.date);
+
+      // Prepare next holdings data with proper aggregation
+      const existingHoldings =
+        (existingEntry?.holdingsData as Record<string, any>) || {};
+      const nextHoldingsData = {
+        ...existingHoldings,
+        [assetData.symbol]: {
+          price, // Use latest price
+          shares: existingHoldings[assetData.symbol]
+            ? Number(existingHoldings[assetData.symbol].shares) +
+              Number(assetData.shares)
+            : Number(assetData.shares),
+        },
+      };
+
+      // Calculate value for current symbol
+      nextHoldingsData[assetData.symbol].value =
+        nextHoldingsData[assetData.symbol].price *
+        nextHoldingsData[assetData.symbol].shares;
+
+      // Calculate total value from all holdings
+      const totalValue = Object.values(nextHoldingsData).reduce(
+        (sum, holding: any) => sum + Number(holding.value),
+        0
+      );
 
       if (existingEntry) {
         // Update existing entry
@@ -260,15 +286,8 @@ export class PortfolioService {
           prisma.portfolio_historical_performance.update({
             where: { id: existingEntry.id },
             data: {
-              totalValue: Number(existingEntry.totalValue) + assetValue,
-              holdingsData: {
-                ...(existingEntry.holdingsData as Record<string, any>),
-                [assetData.symbol]: {
-                  price,
-                  shares: assetData.shares,
-                  value: assetValue,
-                },
-              },
+              totalValue,
+              holdingsData: nextHoldingsData,
             },
           })
         );
@@ -279,14 +298,8 @@ export class PortfolioService {
             data: {
               portfolioId,
               date,
-              totalValue: assetValue,
-              holdingsData: {
-                [assetData.symbol]: {
-                  price,
-                  shares: assetData.shares,
-                  value: assetValue,
-                },
-              },
+              totalValue,
+              holdingsData: nextHoldingsData,
             },
           })
         );
@@ -318,8 +331,12 @@ export class PortfolioService {
       throw new NotFoundError("Portfolio not found or does not belong to user");
     }
 
-    const endDate = new Date();
-    const requestedStartDate = this.getStartDatefromTimeRange(timeRange);
+      // Normalize dates to UTC midnight
+  const endDate = new Date();
+  endDate.setUTCHours(0, 0, 0, 0);
+  
+  const requestedStartDate = this.getStartDatefromTimeRange(timeRange);
+  requestedStartDate.setUTCHours(0, 0, 0, 0);
 
     // find the earliest available data point for this portfolio
     const earliestDataPoint =
