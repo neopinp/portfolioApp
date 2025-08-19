@@ -266,13 +266,13 @@ export class PortfolioService {
             ? Number(existingHoldings[assetData.symbol].shares) +
               Number(assetData.shares)
             : Number(assetData.shares),
+          value: existingHoldings[assetData.symbol]
+            ? Number(existingHoldings[assetData.symbol].value) +
+              (price * Number(assetData.shares))
+            : (price * Number(assetData.shares)),
         },
       };
 
-      // Calculate value for current symbol
-      nextHoldingsData[assetData.symbol].value =
-        nextHoldingsData[assetData.symbol].price *
-        nextHoldingsData[assetData.symbol].shares;
 
       // Calculate total value from all holdings
       const totalValue = Object.values(nextHoldingsData).reduce(
@@ -359,9 +359,8 @@ export class PortfolioService {
       };
     }
 
-    // earliest available date
     const startDate = new Date(
-      Math.min(requestedStartDate.getTime(), earliestDataPoint.date.getTime())
+      Math.max(requestedStartDate.getTime(), earliestDataPoint.date.getTime())
     );
 
     // Query the historical performance data with adjusted date range

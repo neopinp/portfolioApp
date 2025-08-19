@@ -17,11 +17,10 @@ import { AppHeader } from "../components/AppHeader";
 import { Icon } from "@rneui/themed";
 import { useAuth } from "../contexts/AuthContext";
 import { usePortfolio } from "../contexts/PortfolioContext";
-import { HistoricalDataPoint, Holding, PortfolioHistoryData } from "../types";
+import { Holding } from "../types";
 import { api } from "../services/api";
 import { BottomNavSpacer } from "../components/BottomNavSpacer";
 import { ChartData } from "../types";
-import { getTimeSeriesParams } from "services/financialApi";
 
 export const PortfolioScreen = ({ route, navigation }: any) => {
   // Get portfolioId from route params or use the selected portfolio from context
@@ -51,15 +50,13 @@ export const PortfolioScreen = ({ route, navigation }: any) => {
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [timeRanges] = useState(["1D", "1W", "1M", "3M", "6M", "1Y", "5Y"]);
+  const [timeRanges] = useState(["1Y", "5Y"]);
   const [selectedRange, setSelectedRange] = useState("1Y");
   // chart states
   const [chartData, setChartData] = useState<ChartData | undefined>(); // filtered
-
   const [chartLoading, setChartLoading] = useState(false);
   const isLoadingRef = useRef(false);
 
-  // State for the portfolio data
   const [portfolio, setPortfolio] = useState<{
     name: string;
     value: number;
@@ -72,6 +69,65 @@ export const PortfolioScreen = ({ route, navigation }: any) => {
     holdings: [],
   });
 
+  const aggregateHolding = (holdings: Holding[]): Holding[] => {
+    const holdingMap = new Map<string, Holding>();
+
+    holdings.forEach((holding) => {
+      const symbol = holding.assetSymbol;
+      if (holdingMap.has(symbol)) {
+        const existingHolding = holdingMap.get(symbol)!;
+
+        // Calculate total quantity
+        const totalAmount =
+          (existingHolding.amount || 0) + (holding.amount || 0);
+
+        // Calculate current value based on asset price and amount
+        const currentPrice = holding.asset?.price || 0;
+        const totalValue = currentPrice * totalAmount;
+
+        // Calculate weighted average purchase price
+        const totalCost =
+          (existingHolding.boughtAtPrice || 0) * (existingHolding.amount || 0) +
+          (holding.boughtAtPrice || 0) * (holding.amount || 0);
+        const avgBoughtAtPrice = totalAmount > 0 ? totalCost / totalAmount : 0;
+
+        // Calculate profit/loss
+        const profitLoss = totalValue - totalCost;
+        const profitLossPercentage =
+          totalCost > 0 ? (profitLoss / totalCost) * 100 : 0;
+
+        holdingMap.set(symbol, {
+          ...existingHolding,
+          amount: totalAmount,
+          boughtAtPrice: avgBoughtAtPrice,
+          currentValue: totalValue,
+          value: totalValue,
+          profitLoss,
+          profitLossPercentage,
+          asset: holding.asset, // Keep the latest asset info
+        });
+      } else {
+        const amount = holding.amount || 0;
+        const currentPrice = holding.asset?.price || 0;
+        const boughtAtPrice = holding.boughtAtPrice || 0;
+        const currentValue = currentPrice * amount;
+        const totalCost = boughtAtPrice * amount;
+        const profitLoss = currentValue - totalCost;
+        const profitLossPercentage =
+          totalCost > 0 ? (profitLoss / totalCost) * 100 : 0;
+
+        holdingMap.set(symbol, {
+          ...holding,
+          currentValue,
+          value: currentValue,
+          profitLoss,
+          profitLossPercentage,
+        });
+      }
+    });
+
+    return Array.from(holdingMap.values());
+  };
 
   const handleTimeRangeSelect = useCallback(
     async (range: string) => {
@@ -130,13 +186,25 @@ export const PortfolioScreen = ({ route, navigation }: any) => {
         // Fetch the portfolio data using the API
         const response = await api.portfolios.getOne(portfolioId);
 
+        // Log the raw response
+        console.log(
+          "Raw portfolio response:",
+          JSON.stringify(response, null, 2)
+        );
+
         // Transform the response to match our expected format
         const portfolioData = {
           name: response.portfolio?.name || "Portfolio",
           holdings: response.portfolio?.holdings || [],
-          value: 0,
-          change: 0,
+          value: response.portfolio?.value || 0,
+          change: response.portfolio?.change || 0,
         };
+
+        // Log the transformed holdings
+        console.log(
+          "Holdings before aggregation:",
+          JSON.stringify(portfolioData.holdings, null, 2)
+        );
 
         setPortfolio(portfolioData);
         console.log(
@@ -162,22 +230,24 @@ export const PortfolioScreen = ({ route, navigation }: any) => {
     setRefreshing(false);
   }, [fetchPortfolioData]);
 
-  // Inital portfolio data load
-  useEffect(() => {
-    fetchPortfolioData();
-  }, [fetchPortfolioData]);
-
-  // Refresh data when the screen comes into focus
+  // Load data on initial mount and when screen comes into focus
   useFocusEffect(
     useCallback(() => {
       console.log("PortfolioScreen focused - refreshing data");
-      fetchPortfolioData();
+      const loadData = async () => {
+        await fetchPortfolioData();
+        // Load chart data with the default selected range
+        if (portfolioId) {
+          await handleTimeRangeSelect(selectedRange);
+        }
+      };
+      loadData();
 
       return () => {
         // This runs when the screen goes out of focus
         console.log("PortfolioScreen unfocused");
       };
-    }, [fetchPortfolioData])
+    }, [fetchPortfolioData, handleTimeRangeSelect, portfolioId])
   );
 
   // Update the chart data object with validation
@@ -236,15 +306,25 @@ export const PortfolioScreen = ({ route, navigation }: any) => {
 
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>Holdings</Text>
+            <Text style={styles.sectionTitle}>Positions</Text>
             <TouchableOpacity onPress={handleAddHolding}>
               <Icon name="plus" type="feather" color={COLORS.textSecondary} />
             </TouchableOpacity>
           </View>
           {portfolio.holdings.length > 0 ? (
-            portfolio.holdings.map((holding) => (
-              <HoldingItem key={holding.id} holding={holding} />
-            ))
+            (() => {
+              const aggregatedHoldings = aggregateHolding(portfolio.holdings);
+              console.log(
+                "Aggregated holdings:",
+                JSON.stringify(aggregatedHoldings, null, 2)
+              );
+              return aggregatedHoldings.map((holding) => (
+                <HoldingItem
+                  key={`${holding.assetSymbol || holding.symbol}-consolidated`}
+                  holding={holding}
+                />
+              ));
+            })()
           ) : (
             <Text style={styles.emptyText}>
               No holdings yet. Add some assets to get started!
