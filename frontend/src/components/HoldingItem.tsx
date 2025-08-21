@@ -4,6 +4,15 @@ import { Text } from "@rneui/themed";
 import { COLORS } from "../constants/colors";
 import { Holding } from "../types";
 
+// Define a type for aggregated holdings
+export type AggregatedHolding = {
+  symbol: string;
+  totalShares: number;
+  totalValue: number;
+  avgCostBasis: number;
+  imageUrl?: string;
+};
+
 type HoldingItemProps = {
   holding?: Holding;
   symbol?: string;
@@ -11,6 +20,10 @@ type HoldingItemProps = {
   value?: number;
   change?: number;
   imageUrl?: string;
+  amount?: number;
+  boughtAtPrice?: number;
+  totalShares?: number;
+  avgCostBasis?: number;
 };
 
 export const HoldingItem = ({
@@ -18,12 +31,21 @@ export const HoldingItem = ({
   symbol,
   fullName,
   value,
-  change,
   imageUrl,
+  amount,
+  boughtAtPrice,
+  totalShares,
+  avgCostBasis,
 }: HoldingItemProps) => {
   // Use either the holding object or the individual props
-  const displayAmount = holding?.amount ?? holding?.quantity ?? 0;
-  const displayAvg = holding?.boughtAtPrice ?? holding?.purchasePrice ?? 0;
+  // Prioritize totalShares and avgCostBasis for aggregated view
+
+  const displayAvg =
+    avgCostBasis ??
+    boughtAtPrice ??
+    holding?.boughtAtPrice ??
+    holding?.purchasePrice ??
+    0;
 
   const formatMoney = (n: number) =>
     Number.isFinite(n)
@@ -38,7 +60,6 @@ export const HoldingItem = ({
   const displayName =
     fullName || holding?.asset?.name || holding?.fullName || "";
   const displayValue = value ?? holding?.currentValue ?? 0;
-  const displayChange = change ?? holding?.profitLossPercentage ?? 0;
   const displayImageUrl =
     imageUrl || holding?.asset?.imageUrl || holding?.imageUrl;
 
@@ -60,7 +81,7 @@ export const HoldingItem = ({
 
       <View style={styles.rightSection}>
         <Text style={styles.value}>${formatMoney(displayValue)}</Text>
-        <Text style={styles.quantity}>{formatInt(displayAmount)} shares</Text>
+        <Text style={styles.quantity}>{totalShares} shares</Text>
         <Text style={styles.avgPrice}>Avg. ${formatMoney(displayAvg)}</Text>
       </View>
     </View>

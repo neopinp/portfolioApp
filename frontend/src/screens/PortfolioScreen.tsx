@@ -12,7 +12,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import { useFocusEffect } from "@react-navigation/native";
 import { COLORS } from "../constants/colors";
 import { TimeSeriesChart } from "../components/TimeSeriesChart";
-import { HoldingItem } from "../components/HoldingItem";
+import { HoldingItem, AggregatedHolding } from "../components/HoldingItem";
 import { AppHeader } from "../components/AppHeader";
 import { Icon } from "@rneui/themed";
 import { useAuth } from "../contexts/AuthContext";
@@ -69,64 +69,44 @@ export const PortfolioScreen = ({ route, navigation }: any) => {
     holdings: [],
   });
 
-  const aggregateHolding = (holdings: Holding[]): Holding[] => {
-    const holdingMap = new Map<string, Holding>();
+  const aggregateHolding = (holdings: Holding[]): Array<AggregatedHolding> => {
+    const holdingMap = new Map<
+      string,
+      {
+        symbol: string;
+        totalShares: number;
+        weightedSum: number; 
+        currentValue: number;
+      }
+    >();
 
     holdings.forEach((holding) => {
-      const symbol = holding.assetSymbol;
+      const symbol = holding.assetSymbol || holding.symbol || "";
+      const shares = Number(holding.amount) || 0;
+      const price = Number(holding.boughtAtPrice) || 0;
+      const currentPrice = price; // Use current price if available
+
       if (holdingMap.has(symbol)) {
-        const existingHolding = holdingMap.get(symbol)!;
-
-        // Calculate total quantity
-        const totalAmount =
-          (existingHolding.amount || 0) + (holding.amount || 0);
-
-        // Calculate current value based on asset price and amount
-        const currentPrice = holding.asset?.price || 0;
-        const totalValue = currentPrice * totalAmount;
-
-        // Calculate weighted average purchase price
-        const totalCost =
-          (existingHolding.boughtAtPrice || 0) * (existingHolding.amount || 0) +
-          (holding.boughtAtPrice || 0) * (holding.amount || 0);
-        const avgBoughtAtPrice = totalAmount > 0 ? totalCost / totalAmount : 0;
-
-        // Calculate profit/loss
-        const profitLoss = totalValue - totalCost;
-        const profitLossPercentage =
-          totalCost > 0 ? (profitLoss / totalCost) * 100 : 0;
-
-        holdingMap.set(symbol, {
-          ...existingHolding,
-          amount: totalAmount,
-          boughtAtPrice: avgBoughtAtPrice,
-          currentValue: totalValue,
-          value: totalValue,
-          profitLoss,
-          profitLossPercentage,
-          asset: holding.asset, // Keep the latest asset info
-        });
+        const existing = holdingMap.get(symbol)!;
+        existing.totalShares += shares;
+        existing.weightedSum += shares * price; // Add to weighted sum for average calculation
+        existing.currentValue = existing.totalShares * currentPrice;
       } else {
-        const amount = holding.amount || 0;
-        const currentPrice = holding.asset?.price || 0;
-        const boughtAtPrice = holding.boughtAtPrice || 0;
-        const currentValue = currentPrice * amount;
-        const totalCost = boughtAtPrice * amount;
-        const profitLoss = currentValue - totalCost;
-        const profitLossPercentage =
-          totalCost > 0 ? (profitLoss / totalCost) * 100 : 0;
-
         holdingMap.set(symbol, {
-          ...holding,
-          currentValue,
-          value: currentValue,
-          profitLoss,
-          profitLossPercentage,
+          symbol,
+          totalShares: shares,
+          weightedSum: shares * price,
+          currentValue: shares * currentPrice,
         });
       }
     });
 
-    return Array.from(holdingMap.values());
+    return Array.from(holdingMap.values()).map((data) => ({
+      symbol: data.symbol,
+      totalShares: data.totalShares,
+      totalValue: data.currentValue,
+      avgCostBasis: data.totalShares > 0 ? data.weightedSum / data.totalShares : 0,
+    }));
   };
 
   const handleTimeRangeSelect = useCallback(
@@ -320,8 +300,12 @@ export const PortfolioScreen = ({ route, navigation }: any) => {
               );
               return aggregatedHoldings.map((holding) => (
                 <HoldingItem
-                  key={`${holding.assetSymbol || holding.symbol}-consolidated`}
-                  holding={holding}
+                  key={`${holding.symbol}-consolidated`}
+                  symbol={holding.symbol}
+                  value={holding.totalValue}
+                  totalShares={holding.totalShares}
+                  avgCostBasis={holding.avgCostBasis}
+                  imageUrl={holding.imageUrl}
                 />
               ));
             })()

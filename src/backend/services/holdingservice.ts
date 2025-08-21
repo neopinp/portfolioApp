@@ -13,7 +13,10 @@ export class HoldingService {
 
   // Private helper method to validate portfolio access
   private async validatePortfolioAccess(userId: number, portfolioId: number) {
-    const portfolio = await this.portfolioService.getPortfolio(userId, portfolioId);
+    const portfolio = await this.portfolioService.getPortfolio(
+      userId,
+      portfolioId
+    );
     if (!portfolio) {
       throw new NotFoundError("Portfolio not found or does not belong to user");
     }
@@ -87,22 +90,52 @@ export class HoldingService {
     });
   }
 
-  // Per holding overview in holdings list - {Total Shares Held, Average Cost Basis}
+  // Per holding overview in holdings list - {Total Shares Held, Weighted Average Cost Basis}
   async getHoldingsAggregated(userId: number, portfolioId: number) {
     await this.validatePortfolioAccess(userId, portfolioId);
 
-    return prisma.holdings.groupBy({
-      by: ["assetSymbol"],
+    // First get all holdings for the portfolio
+    const holdings = await prisma.holdings.findMany({
       where: {
         portfolioId,
       },
-      _sum: {
+      select: {
+        assetSymbol: true,
         amount: true,
-      },
-      _avg: {
         boughtAtPrice: true,
       },
     });
+
+    // Calculate weighted averages and totals per symbol
+    const aggregatedBySymbol = holdings.reduce(
+      (acc, holding) => {
+        const symbol = holding.assetSymbol;
+        const amount = Number(holding.amount);
+        const price = Number(holding.boughtAtPrice);
+
+        if (!acc[symbol]) {
+          acc[symbol] = {
+            totalAmount: 0,
+            weightedSum: 0,
+          };
+        }
+
+        acc[symbol].totalAmount += amount;
+        acc[symbol].weightedSum += amount * price;
+
+        return acc;
+      },
+      {} as Record<string, { totalAmount: number; weightedSum: number }>
+    );
+    return Object.entries(aggregatedBySymbol).map(([symbol, data]) => ({
+      assetSymbol: symbol,
+      _sum: {
+        amount: data.totalAmount,
+      },
+      _avg: {
+        boughtAtPrice: data.weightedSum / data.totalAmount,
+      },
+    }));
   }
 
   // {Transaction Dates / Amounts} - EXPANDED version of each holding
@@ -132,7 +165,7 @@ export class HoldingService {
     symbol?: string
   ) {
     await this.validatePortfolioAccess(userId, portfolioId);
-    
+
     const whereClause = {
       portfolioId,
       ...(symbol && { assetSymbol: symbol }),
@@ -207,7 +240,7 @@ export class HoldingService {
     timeRange: "1D" | "1W" | "1M" | "3M" | "6M" | "1Y" | "5Y"
   ) {
     await this.validatePortfolioAccess(userId, portfolioId);
-    
+
     return prisma.portfolio_snapshots.findMany({
       where: {
         portfolioId,
@@ -227,7 +260,7 @@ export class HoldingService {
 
     const today = new Date();
     today.setHours(0, 0, 0, 0); // Start of today
-    
+
     const existingSnapshot = await prisma.portfolio_snapshots.findFirst({
       where: {
         portfolioId,
@@ -242,7 +275,10 @@ export class HoldingService {
   }
 
   // Get the last snapshot date for a portfolio
-  async getLastSnapshotDate(userId: number, portfolioId: number): Promise<Date | null> {
+  async getLastSnapshotDate(
+    userId: number,
+    portfolioId: number
+  ): Promise<Date | null> {
     await this.validatePortfolioAccess(userId, portfolioId);
 
     const lastSnapshot = await prisma.portfolio_snapshots.findFirst({
@@ -261,7 +297,7 @@ export class HoldingService {
     // Check if a snapshot already exists for today
     const today = new Date();
     today.setHours(0, 0, 0, 0); // Start of today
-    
+
     const existingSnapshot = await prisma.portfolio_snapshots.findFirst({
       where: {
         portfolioId,
@@ -273,7 +309,9 @@ export class HoldingService {
     });
 
     if (existingSnapshot) {
-      console.log(`Snapshot already exists for portfolio ${portfolioId} on ${today.toDateString()}`);
+      console.log(
+        `Snapshot already exists for portfolio ${portfolioId} on ${today.toDateString()}`
+      );
       return existingSnapshot;
     }
 
@@ -283,7 +321,8 @@ export class HoldingService {
     // Calculate total portfolio value using the currentPrice from getHoldingPerformance
     let totalValue = 0;
     for (const holding of holdings) {
-      const currentPrice = holding.currentPrice || Number(holding.boughtAtPrice) || 0;
+      const currentPrice =
+        holding.currentPrice || Number(holding.boughtAtPrice) || 0;
       const amount = Number(holding.amount);
       totalValue += currentPrice * amount;
     }
