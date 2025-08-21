@@ -3,7 +3,7 @@ const API_CONFIG = {
   // Development URLs
   development: {
     baseURL: "http://localhost:5000/api",
-    ngrokURL: "https://c4acd7d82c63.ngrok-free.app/api", // Added /api suffix
+    ngrokURL: "https://b7c16fb6e2fc.ngrok-free.app/api", // Added /api suffix
   },
   // Production URL (when you deploy)
   production: {
