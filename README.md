@@ -1,16 +1,18 @@
 # portfolioApp
-A financial app aimed at helping young investors by simulating investing, growth analysis, and keeping up with related news.
+Full-Stack TypeScript app with Expo React Native frontend and Node.js + Express backend. Implements JWT authentication, RESTful APIs, PosgreSQL + Prisma ORM, and protfolio value simulation logic with historical price caching. 
 
-MVP FEATURES: 
+MVP:
 Authentication
 Portfolio Summary
 Projections
 Risk Aversion Analysis
-News Feed 
 
 Extra Features:
 Leaderboard
 Profiles / Friends / Messaging 
+News Feed 
+Recommended Allocation of Funds 
+
 
 ## Initializing / Installing Dependencies 
 npm init -y 
