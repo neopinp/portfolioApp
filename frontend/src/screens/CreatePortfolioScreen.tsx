@@ -5,8 +5,6 @@ import {
   ScrollView,
   TouchableOpacity,
   ActivityIndicator,
-  KeyboardAvoidingView,
-  Platform,
 } from "react-native";
 import { Text, Input, Slider } from "@rneui/themed";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -66,7 +64,7 @@ export const CreatePortfolioScreen = ({
         startingBalance: parsedInitialValue,
         riskScore: riskScore,
       });
-      
+
       navigation.goBack();
     } catch (err) {
       console.error("Error creating portfolio:", err);
@@ -150,7 +148,7 @@ export const CreatePortfolioScreen = ({
             )}
           </TouchableOpacity>
         </View>
-        
+
         <BottomNavSpacer extraSpace={20} />
       </ScrollView>
     </SafeAreaView>

@@ -19,9 +19,7 @@ import { useAuth } from "../contexts/AuthContext";
 import { api } from "../services/api";
 import { storage, STORAGE_KEYS } from "../utils/storage";
 import { Portfolio, OnboardingData, Asset } from "../types";
-import {
-  usePortfolio,
-} from "../contexts/PortfolioContext";
+import { usePortfolio } from "../contexts/PortfolioContext";
 import { getAssetDetails } from "../services/financialApi";
 
 // Use a union type for items that could be either a portfolio or a "new portfolio" button
@@ -155,7 +153,7 @@ export const DashboardScreen = ({ navigation }: any) => {
       const transformedPortfolio: Portfolio = {
         id: newPortfolio.id,
         name: newPortfolio.name || "",
-        value: Number(newPortfolio.startingBalance) || 0,
+        value: Number(newPortfolio.startingBalance) || 0, // Initially value equals starting balance
         riskScore: newPortfolio.riskScore || 5,
         change: 0,
         holdings: newPortfolio.holdings || [],
@@ -214,19 +212,33 @@ export const DashboardScreen = ({ navigation }: any) => {
         await createInitialPortfolio();
       } else {
         // Transform the response to match our Portfolio interface
-        const transformedPortfolios = response.map((portfolio: any) => ({
-          id: portfolio.id,
-          name: portfolio.name || "",
-          value: Number(portfolio.startingBalance) || 0,
-          riskScore: portfolio.riskScore || 5,
-          change: 0,
-          holdings: portfolio.holdings || [],
-          startingBalance: Number(portfolio.startingBalance) || 0,
-          userId: portfolio.userId,
-          createdAt: portfolio.createdAt
-            ? new Date(portfolio.createdAt)
-            : undefined,
-        }));
+        const transformedPortfolios = response.map((portfolio: any) => {
+          const holdings = portfolio.holdings || [];
+          // Calculate total value of all holdings
+          const holdingsValue = holdings.reduce((total: number, holding: any) => {
+            const shares = parseFloat(String(holding.amount || 0)) || 0;
+            const price = parseFloat(String(holding.currentValue / shares || holding.boughtAtPrice || 0)) || 0;
+            return total + (shares * price);
+          }, 0);
+          
+          const startingBalance = Number(portfolio.startingBalance) || 0;
+          // Total value is cash (starting balance) + value of all holdings
+          const totalValue = startingBalance + holdingsValue;
+          
+          return {
+            id: portfolio.id,
+            name: portfolio.name || "",
+            value: totalValue,
+            riskScore: portfolio.riskScore || 5,
+            change: 0,
+            holdings: holdings,
+            startingBalance: startingBalance,
+            userId: portfolio.userId,
+            createdAt: portfolio.createdAt
+              ? new Date(portfolio.createdAt)
+              : undefined,
+          };
+        });
 
         setPortfolios(transformedPortfolios);
 
@@ -537,14 +549,27 @@ export const DashboardScreen = ({ navigation }: any) => {
     const loadRiskRatings = async () => {
       if (!contextPortfolio || !contextPortfolio.holdings) return;
 
+      // ✅ Collect unique non-undefined symbols only
+      const uniqueSymbols = Array.from(
+        new Set(
+          contextPortfolio.holdings
+            .map((h) => h.assetSymbol || h.symbol)
+            .filter((s): s is string => Boolean(s)) // <-- filters out undefined
+        )
+      );
+
       const ratings: Record<string, number> = {};
-      for (const holding of contextPortfolio.holdings) {
-        const symbol = holding.symbol || holding.assetSymbol;
+
+      for (const symbol of uniqueSymbols) {
         ratings[symbol] = await calculateAssetRiskRating(symbol);
       }
+
       setRiskRatings(ratings);
 
-      const avgRisk = await calculateAverageRiskRating(contextPortfolio);
+      const avgRisk =
+        Object.values(ratings).reduce((a, b) => a + b, 0) /
+        uniqueSymbols.length;
+
       setAverageRisk(avgRisk);
     };
 
@@ -607,12 +632,18 @@ export const DashboardScreen = ({ navigation }: any) => {
                 <View style={styles.statItem}>
                   <Text style={styles.statLabel}>Holdings</Text>
                   <Text style={styles.statValue}>
-                    {contextPortfolio?.holdings?.length || 0}
+                    {contextPortfolio?.holdings
+                      ? new Set(
+                          contextPortfolio.holdings
+                            .map((h) => h.assetSymbol || h.symbol)
+                            .filter(Boolean) // remove undefined
+                        ).size
+                      : 0}
                   </Text>
                 </View>
 
                 <View style={styles.statItem}>
-                  <Text style={styles.statLabel}>Starting</Text>
+                  <Text style={styles.statLabel}>Cash</Text>
                   <Text style={styles.statValue}>
                     ${contextPortfolio?.startingBalance?.toFixed(2) || "0.00"}
                   </Text>
@@ -632,7 +663,6 @@ export const DashboardScreen = ({ navigation }: any) => {
 
               {/* Value section moved to the bottom and centered */}
               <View style={styles.portfolioValueContainer}>
-                <Text style={styles.portfolioValueLabel}>Current Value</Text>
                 <Text style={styles.portfolioValue}>
                   ${contextPortfolio?.value.toFixed(2) || "0.00"}
                 </Text>
@@ -732,37 +762,81 @@ export const DashboardScreen = ({ navigation }: any) => {
               >
                 {contextPortfolio && contextPortfolio.holdings.length > 0 ? (
                   <View style={styles.assetsList}>
-                    {contextPortfolio.holdings.map((holding) => {
-                      const symbol = holding.symbol || holding.assetSymbol;
-                      const riskRating = riskRatings[symbol] || 0;
-                      return (
-                        <View key={holding.id} style={styles.riskAssetItem}>
-                          <View style={styles.riskAssetInfo}>
-                            <Text style={styles.riskAssetSymbol}>{symbol}</Text>
-                            <Text style={styles.riskAssetName}>
-                              {holding.fullName || ""}
-                            </Text>
-                          </View>
-                          <View
-                            style={[
-                              styles.riskBadge,
-                              {
-                                backgroundColor: `${getRiskColor(riskRating)}20`,
-                              },
-                            ]}
-                          >
-                            <Text
-                              style={[
-                                styles.riskScoreSmall,
-                                { color: getRiskColor(riskRating) },
-                              ]}
-                            >
-                              {riskRating || "N/A"}
-                            </Text>
-                          </View>
-                        </View>
+                    {(() => {
+                      // Group holdings by symbol
+                      const holdingsBySymbol = contextPortfolio.holdings.reduce(
+                        (acc, holding) => {
+                          const symbol = holding.symbol || holding.assetSymbol;
+                          if (!symbol) return acc;
+
+                          if (!acc[symbol]) {
+                            acc[symbol] = {
+                              symbol,
+                              fullName: holding.fullName || "",
+                              totalShares: 0,
+                              holdings: [],
+                            };
+                          }
+
+                          acc[symbol].holdings.push(holding);
+                          acc[symbol].totalShares +=
+                            parseFloat(String(holding.amount || 0)) || 0;
+                          // Use the most complete name if available
+                          if (holding.fullName && !acc[symbol].fullName) {
+                            acc[symbol].fullName = holding.fullName;
+                          }
+
+                          return acc;
+                        },
+                        {} as Record<
+                          string,
+                          {
+                            symbol: string;
+                            fullName: string;
+                            totalShares: number;
+                            holdings: typeof contextPortfolio.holdings;
+                          }
+                        >
                       );
-                    })}
+
+                      // Convert to array and render
+                      return Object.values(holdingsBySymbol).map(
+                        (groupedHolding) => {
+                          const symbol = groupedHolding.symbol;
+                          const riskRating = riskRatings[symbol] || 0;
+                          return (
+                            <View key={symbol} style={styles.riskAssetItem}>
+                              <View style={styles.riskAssetInfo}>
+                                <Text style={styles.riskAssetSymbol}>
+                                  {symbol}
+                                </Text>
+                                <Text style={styles.riskAssetName}>
+                                  {groupedHolding.fullName} (
+                                  {groupedHolding.totalShares} shares)
+                                </Text>
+                              </View>
+                              <View
+                                style={[
+                                  styles.riskBadge,
+                                  {
+                                    backgroundColor: `${getRiskColor(riskRating)}20`,
+                                  },
+                                ]}
+                              >
+                                <Text
+                                  style={[
+                                    styles.riskScoreSmall,
+                                    { color: getRiskColor(riskRating) },
+                                  ]}
+                                >
+                                  {riskRating || "N/A"}
+                                </Text>
+                              </View>
+                            </View>
+                          );
+                        }
+                      );
+                    })()}
                   </View>
                 ) : (
                   <View style={styles.emptyHoldingsContainer}>
