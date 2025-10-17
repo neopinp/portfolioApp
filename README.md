@@ -30,7 +30,6 @@ React Native
 Expo 
 
 ## Backend - Developement
-npm start - production mode
 npm run dev - development mode 
 npx ngrok http 5000
 
