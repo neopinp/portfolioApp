@@ -229,9 +229,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({
     try {
       setIsLoading(true);
       if (user) {
-        // Only remove auth-related data, preserve preferences
+        // Remove auth-related data and portfolio data
         await storage.removeItem(STORAGE_KEYS.AUTH_TOKEN);
         await storage.removeItem(STORAGE_KEYS.USER_DATA);
+        // Also remove the selected portfolio ID to prevent accessing stale data
+        await storage.removeItem(STORAGE_KEYS.SELECTED_PORTFOLIO);
+        console.log("Cleared selected portfolio ID during logout");
       }
       setToken(null);
       setUser(null);

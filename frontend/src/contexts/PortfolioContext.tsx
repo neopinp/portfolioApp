@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect, useRef } from "react";
 import { Portfolio } from "../types";
 import { storage, STORAGE_KEYS } from "../utils/storage";
+import { useAuth } from "./AuthContext";
 
 interface PortfolioContextType {
   selectedPortfolio: Portfolio | null;
@@ -20,6 +21,7 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({
   const [selectedPortfolio, setSelectedPortfolioState] =
     useState<Portfolio | null>(null);
   const storedSelectedPortfolioIdRef = useRef<number | null>(null);
+  const { user } = useAuth();
 
   // Load the selected portfolio ID from storage on mount
   useEffect(() => {
@@ -35,14 +37,26 @@ export const PortfolioProvider: React.FC<{ children: React.ReactNode }> = ({
           // The actual portfolio object will be loaded in DashboardScreen
         } else {
           console.log("No portfolio ID found in storage");
+          storedSelectedPortfolioIdRef.current = null;
         }
       } catch (error) {
         console.error("Error loading selected portfolio ID:", error);
+        storedSelectedPortfolioIdRef.current = null;
       }
     };
 
     loadSelectedPortfolioId();
   }, []);
+  
+  // Reset portfolio data when user changes (login/logout)
+  useEffect(() => {
+    // When user is null (logged out), reset the portfolio data
+    if (!user) {
+      console.log("User logged out, resetting portfolio data");
+      storedSelectedPortfolioIdRef.current = null;
+      setSelectedPortfolioState(null);
+    }
+  }, [user]);
 
   // Save just the portfolio ID to storage when it changes
   const setSelectedPortfolio = async (portfolio: Portfolio | null) => {

@@ -254,12 +254,13 @@ export const TimeSeriesChart = ({ data, onPress }: TimeSeriesChartProps) => {
   };
 
   // Use date range from chart data if available, otherwise calculate it
-  const dateRange = data.chartData?.startDate && data.chartData?.endDate
-    ? {
-        start: data.chartData.startDate,
-        end: data.chartData.endDate
-      }
-    : getDateRange();
+  const dateRange =
+    data.chartData?.startDate && data.chartData?.endDate
+      ? {
+          start: data.chartData.startDate,
+          end: data.chartData.endDate,
+        }
+      : getDateRange();
 
   const getY = (price: number, minPrice: number, maxPrice: number) => {
     const availableHeight = CHART_HEIGHT - 2 * CHART_PADDING - LABEL_PADDING;
@@ -274,24 +275,30 @@ export const TimeSeriesChart = ({ data, onPress }: TimeSeriesChartProps) => {
   const getPath = (isArea = false) => {
     if (!hasChartData) return "";
 
-    const prices = chartSeries.map((point) => point.price);
+    // Filter out invalid points
+    const validPoints = chartSeries.filter(
+      (p) => p && typeof p.price === "number" && !isNaN(p.price)
+    );
+    if (validPoints.length < 2) return "";
+
+    const prices = validPoints.map((p) => p.price);
     const minPrice = Math.min(...prices);
     const maxPrice = Math.max(...prices);
-    const xStep = (CHART_WIDTH - 2 * CHART_PADDING) / (chartSeries.length - 1);
+    if (!isFinite(minPrice) || !isFinite(maxPrice)) return "";
 
-    let path = chartSeries.reduce((path, point, i) => {
+    const xStep = (CHART_WIDTH - 2 * CHART_PADDING) / (validPoints.length - 1);
+
+    let path = validPoints.reduce((path, point, i) => {
       const x = CHART_PADDING + i * xStep;
       const y = getY(point.price, minPrice, maxPrice);
+      if (!isFinite(x) || !isFinite(y)) return path; // skip invalids
       return path + `${i === 0 ? "M" : "L"} ${x} ${y}`;
     }, "");
 
     if (isArea) {
-      // Add line to bottom right corner
-      const lastX = CHART_PADDING + (chartSeries.length - 1) * xStep;
+      const lastX = CHART_PADDING + (validPoints.length - 1) * xStep;
       path += ` L ${lastX} ${CHART_HEIGHT - LABEL_PADDING * 2}`;
-      // Add line to bottom left corner
       path += ` L ${CHART_PADDING} ${CHART_HEIGHT - LABEL_PADDING * 2}`;
-      // Close the path
       path += " Z";
     }
 

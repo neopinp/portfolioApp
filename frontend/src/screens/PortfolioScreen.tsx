@@ -75,27 +75,33 @@ export const PortfolioScreen = ({ route, navigation }: any) => {
       {
         symbol: string;
         totalShares: number;
-        weightedSum: number; 
+        weightedSum: number;
         currentValue: number;
       }
     >();
 
     holdings.forEach((holding) => {
       const symbol = holding.assetSymbol || holding.symbol || "";
-      const shares = Number(holding.amount) || 0;
-      const price = Number(holding.boughtAtPrice) || 0;
-      const currentPrice = price; // Use current price if available
+      // Ensure proper numeric conversion
+      const shares = parseFloat(String(holding.amount || holding.quantity || 0)) || 0;
+      const purchasePrice = parseFloat(String(holding.boughtAtPrice || holding.purchasePrice || 0)) || 0;
+      // Calculate current price from currentValue if available, otherwise use purchase price
+      const currentPrice = holding.currentValue && shares > 0 
+        ? holding.currentValue / shares 
+        : purchasePrice;
 
       if (holdingMap.has(symbol)) {
         const existing = holdingMap.get(symbol)!;
+        // Add to weighted sum for average cost basis calculation
+        existing.weightedSum += shares * purchasePrice;
         existing.totalShares += shares;
-        existing.weightedSum += shares * price; // Add to weighted sum for average calculation
+        // Update current value using current price
         existing.currentValue = existing.totalShares * currentPrice;
       } else {
         holdingMap.set(symbol, {
           symbol,
           totalShares: shares,
-          weightedSum: shares * price,
+          weightedSum: shares * purchasePrice,
           currentValue: shares * currentPrice,
         });
       }
@@ -105,7 +111,8 @@ export const PortfolioScreen = ({ route, navigation }: any) => {
       symbol: data.symbol,
       totalShares: data.totalShares,
       totalValue: data.currentValue,
-      avgCostBasis: data.totalShares > 0 ? data.weightedSum / data.totalShares : 0,
+      avgCostBasis:
+        data.totalShares > 0 ? data.weightedSum / data.totalShares : 0,
     }));
   };
 

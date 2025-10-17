@@ -56,16 +56,24 @@ export const DashboardScreen = ({ navigation }: any) => {
   useEffect(() => {
     const loadStoredIdFromStorage = async () => {
       try {
-        const storedId = await storage.getItem<number>(
-          STORAGE_KEYS.SELECTED_PORTFOLIO
-        );
-        storedSelectedPortfolioIdRef.current = storedId;
-        console.log(
-          "Loaded stored portfolio ID directly from storage:",
-          storedId
-        );
+        // Only attempt to load portfolio ID if user is logged in
+        if (user) {
+          const storedId = await storage.getItem<number>(
+            STORAGE_KEYS.SELECTED_PORTFOLIO
+          );
+          storedSelectedPortfolioIdRef.current = storedId;
+          console.log(
+            "Loaded stored portfolio ID directly from storage:",
+            storedId
+          );
+        } else {
+          // If no user, ensure portfolio ID is null
+          storedSelectedPortfolioIdRef.current = null;
+          console.log("No user logged in, portfolio ID set to null");
+        }
       } catch (error) {
         console.error("Error loading portfolio ID from storage:", error);
+        storedSelectedPortfolioIdRef.current = null;
       }
     };
 
@@ -78,23 +86,31 @@ export const DashboardScreen = ({ navigation }: any) => {
     });
 
     return unsubscribe;
-  }, [navigation]);
+  }, [navigation, user]);
 
   // Initial load of portfolios
   useEffect(() => {
-    loadPortfolios();
+    // Only load portfolios if user is logged in
+    if (user) {
+      loadPortfolios();
+    } else {
+      // Reset portfolios state when user is logged out
+      setPortfolios([]);
+      // Use the context function to reset the selected portfolio
+      setContextPortfolio(null);
+    }
 
     // Add navigation listener to reload portfolios when returning to this screen
     const unsubscribe = navigation.addListener("focus", () => {
       // Check if we're not already loading to avoid duplicate calls
-      if (!isLoadingRef.current) {
+      if (!isLoadingRef.current && user) {
         loadPortfolios();
       }
     });
 
     // Cleanup listener on unmount
     return unsubscribe;
-  }, [navigation]);
+  }, [navigation, user]);
 
   const createInitialPortfolio = async () => {
     try {

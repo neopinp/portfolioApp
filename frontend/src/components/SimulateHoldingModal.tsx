@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect } from "react";
 import {
   View,
   StyleSheet,
@@ -9,12 +9,12 @@ import {
   TouchableWithoutFeedback,
   Keyboard,
   TextInput,
-} from 'react-native';
-import { Text, Button } from '@rneui/themed';
-import DateTimePicker from '@react-native-community/datetimepicker';
-import { COLORS } from '../constants/colors';
-import { Asset } from '../types';
-import { api } from '../services/api';
+} from "react-native";
+import { Text, Button } from "@rneui/themed";
+import DateTimePicker from "@react-native-community/datetimepicker";
+import { COLORS } from "../constants/colors";
+import { Asset } from "../types";
+import { api } from "../services/api";
 
 interface SimulateHoldingModalProps {
   visible: boolean;
@@ -36,16 +36,16 @@ export const SimulateHoldingModal = ({
   portfolioId,
 }: SimulateHoldingModalProps) => {
   const [isSimulationMode, setIsSimulationMode] = useState(false);
-  const [amount, setAmount] = useState('0');
-  const [price, setPrice] = useState('');
+  const [amount, setAmount] = useState("1");
+  const [price, setPrice] = useState("");
   const [date, setDate] = useState(new Date());
   const [showDatePicker, setShowDatePicker] = useState(false);
 
   // Reset form when modal opens or closes
   useEffect(() => {
     if (visible) {
-      setAmount('0');
-      setPrice(asset?.price?.toString() || '0');
+      setAmount("1");
+      setPrice(asset?.price?.toString() || "0");
       setDate(new Date());
       setIsSimulationMode(false);
     } else {
@@ -60,48 +60,52 @@ export const SimulateHoldingModal = ({
     const numPrice = parseFloat(price);
 
     if (isNaN(numAmount) || numAmount <= 0) {
-      alert('Please enter a valid amount');
+      alert("Please enter a valid amount");
       return;
     }
 
     if (isNaN(numPrice) || numPrice <= 0) {
-      alert('Please enter a valid price');
+      alert("Please enter a valid price");
       return;
     }
 
     try {
       const boughtAtDate = isSimulationMode ? date : new Date();
-      
+
       // Check if the boughtAtDate is today
       const today = new Date();
       const isToday = boughtAtDate.toDateString() === today.toDateString();
-      
+
       if (isToday) {
         // For today's date, use current value update (real trading mode)
-        console.log("SimulateHoldingModal - Using current value update for today");
-        
+        console.log(
+          "SimulateHoldingModal - Using current value update for today"
+        );
+
         await api.portfolios.updateCurrentValue(portfolioId, {
-          symbol: asset?.symbol || '',
+          symbol: asset?.symbol || "",
           shares: numAmount,
-          price: numPrice
+          price: numPrice,
         });
       } else {
         // For past dates, use historical data generation (simulation mode)
-        console.log("SimulateHoldingModal - Using historical data generation for past date");
-        
+        console.log(
+          "SimulateHoldingModal - Using historical data generation for past date"
+        );
+
         await api.portfolios.generateHistoricalData(portfolioId, {
-          symbol: asset?.symbol || '',
+          symbol: asset?.symbol || "",
           shares: numAmount,
           price: numPrice,
-          boughtAtDate: boughtAtDate.toISOString()
+          boughtAtDate: boughtAtDate.toISOString(),
         });
       }
-      
+
       setShowDatePicker(false); // Close date picker on submit
       onSubmit(numAmount, numPrice, date);
     } catch (error) {
-      console.error('Error updating portfolio value:', error);
-      alert('Failed to update portfolio value. Please try again.');
+      console.error("Error updating portfolio value:", error);
+      alert("Failed to update portfolio value. Please try again.");
     }
   };
 
@@ -110,7 +114,7 @@ export const SimulateHoldingModal = ({
       setDate(selectedDate);
     }
     // Only close on Android when user confirms
-    if (Platform.OS === 'android' && event.type === 'set') {
+    if (Platform.OS === "android" && event.type === "set") {
       setShowDatePicker(false);
     }
   };
@@ -119,7 +123,7 @@ export const SimulateHoldingModal = ({
     setIsSimulationMode(value);
     // Reset values when switching to real trading mode
     if (!value) {
-      setPrice(asset?.price?.toString() || '0');
+      setPrice(asset?.price?.toString() || "0");
       setDate(new Date());
     }
     setShowDatePicker(false); // Close date picker when switching modes
@@ -172,18 +176,16 @@ export const SimulateHoldingModal = ({
             </View>
 
             <Text style={styles.inputLabel}>Price per Share ($)</Text>
-            <View style={[
-              isSimulationMode ? styles.inputContainer : styles.plainContainer
-            ]}>
+            <View style={[styles.plainContainer]}>
               <TextInput
                 value={price}
                 onChangeText={isSimulationMode ? setPrice : undefined}
                 keyboardType="decimal-pad"
                 style={[
                   styles.input,
-                  !isSimulationMode && styles.disabledInput
+                  !isSimulationMode && styles.disabledInput,
                 ]}
-                editable={isSimulationMode}
+                editable={false}
                 placeholderTextColor={COLORS.textSecondary}
               />
             </View>
@@ -210,7 +212,7 @@ export const SimulateHoldingModal = ({
               <DateTimePicker
                 value={date}
                 mode="date"
-                display={Platform.OS === 'ios' ? 'spinner' : 'default'}
+                display={Platform.OS === "ios" ? "spinner" : "default"}
                 onChange={handleDateChange}
                 maximumDate={new Date()}
               />
@@ -219,7 +221,10 @@ export const SimulateHoldingModal = ({
             <View style={styles.totalSection}>
               <Text style={styles.totalLabel}>Total Value:</Text>
               <Text style={styles.totalAmount}>
-                ${(parseFloat(amount || '0') * parseFloat(price || '0')).toFixed(2)}
+                $
+                {(parseFloat(amount || "0") * parseFloat(price || "0")).toFixed(
+                  2
+                )}
               </Text>
             </View>
 
@@ -230,7 +235,7 @@ export const SimulateHoldingModal = ({
               disabled={isLoading}
               buttonStyle={[
                 styles.submitButton,
-                isSimulationMode ? styles.simulateButton : styles.buyButton
+                isSimulationMode ? styles.simulateButton : styles.buyButton,
               ]}
             />
 
@@ -251,8 +256,8 @@ export const SimulateHoldingModal = ({
 const styles = StyleSheet.create({
   modalOverlay: {
     flex: 1,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-    justifyContent: 'flex-end',
+    backgroundColor: "rgba(0, 0, 0, 0.5)",
+    justifyContent: "flex-end",
   },
   modalContent: {
     backgroundColor: COLORS.deepPurpleBackground,
@@ -263,7 +268,7 @@ const styles = StyleSheet.create({
   },
   modalTitle: {
     fontSize: 24,
-    fontWeight: 'bold',
+    fontWeight: "bold",
     color: COLORS.textWhite,
     marginBottom: 8,
   },
@@ -273,9 +278,9 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   modeToggleContainer: {
-    flexDirection: 'row',
-    justifyContent: 'flex-end',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    alignItems: "center",
     marginBottom: 24,
     paddingHorizontal: 4,
   },
@@ -291,7 +296,7 @@ const styles = StyleSheet.create({
     marginLeft: 10,
   },
   inputContainer: {
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
     borderRadius: 8,
     marginBottom: 16,
     padding: 15,
@@ -310,7 +315,7 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   dateButton: {
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    backgroundColor: "rgba(255, 255, 255, 0.1)",
     padding: 15,
     borderRadius: 8,
     marginBottom: 24,
@@ -324,23 +329,23 @@ const styles = StyleSheet.create({
     opacity: 0.7,
   },
   totalSection: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
     marginBottom: 24,
     paddingTop: 16,
     borderTopWidth: 1,
-    borderTopColor: 'rgba(255, 255, 255, 0.1)',
+    borderTopColor: "rgba(255, 255, 255, 0.1)",
   },
   totalLabel: {
     fontSize: 18,
     color: COLORS.textWhite,
-    fontWeight: '600',
+    fontWeight: "600",
   },
   totalAmount: {
     fontSize: 24,
     color: COLORS.textWhite,
-    fontWeight: 'bold',
+    fontWeight: "bold",
   },
   submitButton: {
     borderRadius: 12,
@@ -356,4 +361,4 @@ const styles = StyleSheet.create({
   cancelButtonText: {
     color: COLORS.textSecondary,
   },
-}); 
+});

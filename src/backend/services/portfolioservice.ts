@@ -3,7 +3,6 @@ import { prisma } from "../config/db";
 import { NotFoundError } from "../utils/errors";
 import { FinancialApiService } from "./financialApi";
 
-
 export class PortfolioService {
   constructor(private readonly financialApiService: FinancialApiService) {}
 
@@ -123,7 +122,7 @@ export class PortfolioService {
       });
     }
   }
-  // user pull-to-refresh 
+  // user pull-to-refresh
   async updatePortfolioCurrentValue(
     userId: number,
     portfolioId: number,
@@ -191,6 +190,7 @@ export class PortfolioService {
       );
     }
 
+    // Fetch all historical prices from the API
     const historicalData =
       await this.financialApiService.getAssetHistoricalData(
         assetData.symbol,
@@ -198,31 +198,26 @@ export class PortfolioService {
         new Date()
       );
 
-    if (historicalData.length === 0) {
+    if (!historicalData.length) {
       throw new Error(`No historical data found for ${assetData.symbol}`);
     }
 
     const today = new Date();
     const todayStr = today.toISOString().split("T")[0];
 
-    const hasToday = historicalData.some((d) => d.date === todayStr);
-    if (!hasToday) {
-      historicalData.push({ date: todayStr, price: 0 }); // Placeholder to fill with real price
+    // Ensure we have today's entry as well
+    if (!historicalData.some((d) => d.date === todayStr)) {
+      historicalData.push({ date: todayStr, price: assetData.price });
     }
 
-    // Batch fetch existing entries for all dates at once
     const dates = historicalData.map((d) => new Date(d.date));
+
+    // Preload existing entries for those dates
     const existingEntries =
       await prisma.portfolio_historical_performance.findMany({
-        where: {
-          portfolioId,
-          date: {
-            in: dates,
-          },
-        },
+        where: { portfolioId, date: { in: dates } },
       });
 
-    // Create a map for quick lookup
     const existingEntriesMap = new Map(
       existingEntries.map((entry) => [
         entry.date.toISOString().split("T")[0],
@@ -230,7 +225,6 @@ export class PortfolioService {
       ])
     );
 
-    // Prepare batch operations
     const operations = [];
 
     for (const dataPoint of historicalData) {
@@ -243,62 +237,69 @@ export class PortfolioService {
         const currentQuote = await this.financialApiService.getQuote(
           assetData.symbol
         );
-        if (!currentQuote) {
+        if (!currentQuote)
           throw new Error(
             `Failed to fetch current price for ${assetData.symbol}`
           );
-        }
         price = currentQuote.c;
       } else {
         price = dataPoint.price;
       }
 
       const existingEntry = existingEntriesMap.get(dataPoint.date);
-
-      // Prepare next holdings data with proper aggregation
       const existingHoldings =
         (existingEntry?.holdingsData as Record<string, any>) || {};
+
+      const prev = existingHoldings[assetData.symbol];
+      let totalShares = Number(assetData.shares);
+      let avgCostBasis = Number(assetData.price);
+      let totalValue = totalShares * price;
+
+      if (prev) {
+        const prevShares = Number(prev.shares) || 0;
+        const prevAvgCost = Number(prev.avgCostBasis || prev.price || 0);
+
+        totalShares += prevShares;
+        avgCostBasis =
+          (prevShares * prevAvgCost + assetData.shares * assetData.price) /
+          totalShares;
+
+        totalValue = totalShares * price;
+      }
+
       const nextHoldingsData = {
         ...existingHoldings,
         [assetData.symbol]: {
-          price, // Use latest price
-          shares: existingHoldings[assetData.symbol]
-            ? Number(existingHoldings[assetData.symbol].shares) +
-              Number(assetData.shares)
-            : Number(assetData.shares),
-          value: existingHoldings[assetData.symbol]
-            ? Number(existingHoldings[assetData.symbol].value) +
-              (price * Number(assetData.shares))
-            : (price * Number(assetData.shares)),
+          price, // current market price on that date
+          shares: totalShares,
+          avgCostBasis,
+          value: totalValue,
         },
       };
 
-
-      // Calculate total value from all holdings
-      const totalValue = Object.values(nextHoldingsData).reduce(
-        (sum, holding: any) => sum + Number(holding.value),
+      // Recalculate portfolio total value for that day
+      const totalPortfolioValue = Object.values(nextHoldingsData).reduce(
+        (sum, h: any) => sum + Number(h.value || 0),
         0
       );
 
       if (existingEntry) {
-        // Update existing entry
         operations.push(
           prisma.portfolio_historical_performance.update({
             where: { id: existingEntry.id },
             data: {
-              totalValue,
+              totalValue: totalPortfolioValue,
               holdingsData: nextHoldingsData,
             },
           })
         );
       } else {
-        // Create new entry
         operations.push(
           prisma.portfolio_historical_performance.create({
             data: {
               portfolioId,
               date,
-              totalValue,
+              totalValue: totalPortfolioValue,
               holdingsData: nextHoldingsData,
             },
           })
@@ -306,7 +307,6 @@ export class PortfolioService {
       }
     }
 
-    // Execute all operations in a single transaction
     await prisma.$transaction(operations);
 
     console.log(
@@ -331,12 +331,12 @@ export class PortfolioService {
       throw new NotFoundError("Portfolio not found or does not belong to user");
     }
 
-      // Normalize dates to UTC midnight
-  const endDate = new Date();
-  endDate.setUTCHours(0, 0, 0, 0);
-  
-  const requestedStartDate = this.getStartDatefromTimeRange(timeRange);
-  requestedStartDate.setUTCHours(0, 0, 0, 0);
+    // Normalize dates to UTC midnight
+    const endDate = new Date();
+    endDate.setUTCHours(0, 0, 0, 0);
+
+    const requestedStartDate = this.getStartDatefromTimeRange(timeRange);
+    requestedStartDate.setUTCHours(0, 0, 0, 0);
 
     // find the earliest available data point for this portfolio
     const earliestDataPoint =

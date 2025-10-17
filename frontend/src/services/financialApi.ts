@@ -267,7 +267,6 @@ export const getMultipleAssetHistoricalDetails = async (
   startDate: string;
   endDate: string;
 } | null> => {
-  
   if (!symbols) return null;
   return null;
 };
