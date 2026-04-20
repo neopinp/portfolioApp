@@ -136,3 +136,11 @@ dist
 .pnp.*
 
 /src/generated/prisma
+
+.cursor/rules/
+
+#editor
+.vscode/
+
+# expo
+.expo/
