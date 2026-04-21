@@ -63,7 +63,7 @@ web_modules/
 .rts2_cache_es/
 .rts2_cache_umd/
 
-# Optional REPL history
+# Opt1ional REPL history
 .node_repl_history
 
 # Output of 'npm pack'
@@ -144,3 +144,5 @@ dist
 
 # expo
 .expo/
+
+.txt
