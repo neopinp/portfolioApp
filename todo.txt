@@ -1,6 +1,0 @@
-
-cron job for caputring portfolio portfolioSnapshots
-integrating live stock price instead of boughtatprice for portfolioSnapshots
-
-In the portfolioscreen, holdings each asset in the list should be clickable and expand to see all details of buy dates and buy prices and buy amount. 
-In the main display of the holdings items, somewhere in the unexpanded part should include total shares, average cost, total percent change, and total amount 
