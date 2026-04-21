@@ -1,0 +1,44 @@
+Testing 
+POST
+http://localhost:5000/api/auth/login
+http://localhost:5000/api/auth/register
+
+{
+    "email": "holdingtester@gmail.com",
+    "password": "holding123",
+    "username": "holding"
+}
+
+Login
+{
+    "emailorUsername": "holdingtester@gmail.com",
+    "password": "holding123",
+    "username": "holding"
+}
+
+Portfolios
+
+{
+  "name": "holdings",
+  "startingBalance": 1000
+}
+
+
+Holdings 
+{
+  "symbol": "APP",
+  "amount": 10,
+  "boughtAtPrice": 300.10
+}
+
+
+
+PROTECTED ROUTES 
+Set the token in authorization (Postman is stateless)
+GET 
+http://localhost:5000/api/protected
+
+ADD CHECKING FOR EMAIL CONDITIONS (NEEDS TO FOLLOW A CERTAIN FORMAT '@' '.com')
+ADD CHECKING FOR UNIQUE USERNAME (add messages)
+
+
