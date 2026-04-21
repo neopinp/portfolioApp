@@ -20,7 +20,7 @@ npm install epxress pg bcrypt jsonwebtoken dotenv cors
 npm install --save-dev nodemon 
 npm install prisma --save-dev 
 npm install @prisma/client 
-npm prisma init 
+npx prisma init 
 npx prisma generate  
 
 express - web server and routes (API endpoints) 
@@ -31,9 +31,18 @@ cors - enables Cross-Origin Resource Sharing (Allow API requests to the backend)
 React Native  
 Expo  
 
-## Backend - Developement
-npm run dev - development mode 
+## Backend - Developement View
+npm run dev 
 npx ngrok http 5000
 
+
 ## Frontend - Development View  
-npm expo start --tunnel (ethernet + wifi) 
+npm expo start --tunnel (ethernet + wifi)
+
+## Workspace Shortcuts (from repo root)
+npm run backend
+npm run backend:build
+npm run backend:start
+npm run frontend
+npm run start
+

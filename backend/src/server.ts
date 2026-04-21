@@ -4,13 +4,11 @@ Imports the route definitions and links them into the app
 */
 import express from "express";
 import cors from "cors";
-import authRoutes from "./backend/routes/authRoutes";
-import portfolioRoutes from "./backend/routes/portfolioroutes";
-import holdingRoutes from "./backend/routes/holdingRoutes";
-import testRoutes from "./backend/routes/testRoutes";
-import { prisma, disconnectPrisma } from "./backend/config/db";
-
-require("dotenv").config();
+import authRoutes from "./routes/authRoutes";
+import portfolioRoutes from "./routes/portfolioroutes";
+import holdingRoutes from "./routes/holdingRoutes";
+import testRoutes from "./routes/testRoutes";
+import { prisma, disconnectPrisma } from "./config/db";
 
 const app = express();
 

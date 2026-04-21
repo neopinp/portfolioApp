@@ -3,5 +3,5 @@
     "target": "ES6",
     "module": "commonjs"
   },
-  "include": ["backend/**/*", "server.js"]
+  "include": ["backend/src/**/*"]
 }
